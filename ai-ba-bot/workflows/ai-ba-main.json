@@ -1,0 +1,476 @@
+{
+  "name": "AI Business Analyst - Bitrix24",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bitrix-tasks",
+        "responseMode": "onReceived",
+        "responseData": "allEntries"
+      },
+      "id": "webhook-trigger",
+      "name": "Bitrix24 Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "bitrix-tasks"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.event }}",
+              "operation": "equals",
+              "value2": "ONTASKADD"
+            }
+          ]
+        }
+      },
+      "id": "check-event-type",
+      "name": "Is New Task?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.BITRIX24_WEBHOOK_URL }}tasks.task.get",
+        "options": {
+          "qs": {
+            "values": [
+              {
+                "name": "taskId",
+                "value": "={{ $json.data.FIELDS_AFTER.ID }}"
+              }
+            ]
+          }
+        }
+      },
+      "id": "get-task-details",
+      "name": "Get Task Details",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [650, 200],
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.BITRIX24_WEBHOOK_URL }}user.get",
+        "options": {
+          "qs": {
+            "values": [
+              {
+                "name": "ID",
+                "value": "={{ $json.result.task.createdBy }}"
+              }
+            ]
+          }
+        }
+      },
+      "id": "get-creator-info",
+      "name": "Get Creator Info",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [850, 200],
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "model": "gpt-4-turbo-preview",
+        "options": {
+          "temperature": 0.3,
+          "maxTokens": 1000
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Ты - опытный бизнес-аналитик. Твоя задача - анализировать описания задач и определять, достаточно ли информации для качественного выполнения.\n\nОценивай задачу по следующим критериям:\n1. Цель - понятно ли, ЗАЧЕМ нужна эта задача?\n2. Результат - описано ли, ЧТО должно получиться?\n3. Контекст - есть ли необходимая предметная информация?\n4. Критерии приёмки - понятно ли, как проверить выполнение?\n5. Ограничения - указаны ли важные ограничения?\n\nОтвечай ТОЛЬКО в формате JSON."
+            },
+            {
+              "role": "user",
+              "content": "Проанализируй задачу:\n\nЗаголовок: {{ $json.task.title }}\nОписание: {{ $json.task.description }}\nПриоритет: {{ $json.task.priority }}\n\nВерни JSON:\n{\n  \"is_complete\": true/false,\n  \"completeness_score\": 0-100,\n  \"missing_info\": [\"список недостающей информации\"],\n  \"task_type\": \"bug/feature/report/integration/other\"\n}"
+            }
+          ]
+        },
+        "jsonOutput": true
+      },
+      "id": "analyze-task",
+      "name": "AI: Analyze Task",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [1050, 200],
+      "credentials": {
+        "openAiApi": {
+          "id": "",
+          "name": "OpenAI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.completeness_score }}",
+              "operation": "smallerEqual",
+              "value2": 70
+            }
+          ]
+        }
+      },
+      "id": "needs-clarification",
+      "name": "Needs Clarification?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1250, 200]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4-turbo-preview",
+        "options": {
+          "temperature": 0.5,
+          "maxTokens": 800
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Ты - вежливый и профессиональный бизнес-аналитик. Сформулируй уточняющие вопросы к постановщику задачи. Правила: 1. Вопросы конкретные и понятные 2. Используй нумерованный список 3. Не больше 6 вопросов 4. Пиши на русском"
+            },
+            {
+              "role": "user",
+              "content": "Сгенерируй вопросы для задачи:\n\nЗаголовок: {{ $node['Get Task Details'].json.result.task.title }}\nОписание: {{ $node['Get Task Details'].json.result.task.description }}\nНедостающая информация: {{ $node['AI: Analyze Task'].json.missing_info }}\nПостановщик: {{ $node['Get Creator Info'].json.result[0].NAME }} {{ $node['Get Creator Info'].json.result[0].LAST_NAME }}\n\nВерни JSON с полем formatted_message содержащим готовое сообщение."
+            }
+          ]
+        },
+        "jsonOutput": true
+      },
+      "id": "generate-questions",
+      "name": "AI: Generate Questions",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [1450, 100],
+      "credentials": {
+        "openAiApi": {
+          "id": "",
+          "name": "OpenAI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.BITRIX24_WEBHOOK_URL }}task.commentitem.add",
+        "method": "POST",
+        "body": {
+          "mode": "json",
+          "json": {
+            "TASKID": "={{ $node['Get Task Details'].json.result.task.id }}",
+            "FIELDS": {
+              "POST_MESSAGE": "={{ $json.formatted_message }}"
+            }
+          }
+        }
+      },
+      "id": "post-questions-comment",
+      "name": "Post Questions to Task",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1650, 100],
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.BITRIX24_WEBHOOK_URL }}tasks.task.update",
+        "method": "POST",
+        "body": {
+          "mode": "json",
+          "json": {
+            "taskId": "={{ $node['Get Task Details'].json.result.task.id }}",
+            "fields": {
+              "TAGS": ["требует_уточнения"]
+            }
+          }
+        }
+      },
+      "id": "add-pending-tag",
+      "name": "Add Pending Tag",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1850, 100],
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "model": "gpt-3.5-turbo",
+        "options": {
+          "temperature": 0.2,
+          "maxTokens": 500
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Проклассифицируй задачу и назначь теги из списка: bug, feature, enhancement, frontend, backend, database, api, critical, high_priority, sales, marketing, crm, reports, automation, urgent"
+            },
+            {
+              "role": "user",
+              "content": "Задача:\nЗаголовок: {{ $node['Get Task Details'].json.result.task.title }}\nОписание: {{ $node['Get Task Details'].json.result.task.description }}\n\nВерни JSON: {\"tags\": [\"tag1\", \"tag2\"]}"
+            }
+          ]
+        },
+        "jsonOutput": true
+      },
+      "id": "classify-tags",
+      "name": "AI: Classify Tags",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [1450, 300],
+      "credentials": {
+        "openAiApi": {
+          "id": "",
+          "name": "OpenAI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.BITRIX24_WEBHOOK_URL }}tasks.task.update",
+        "method": "POST",
+        "body": {
+          "mode": "json",
+          "json": {
+            "taskId": "={{ $node['Get Task Details'].json.result.task.id }}",
+            "fields": {
+              "TAGS": "={{ $json.tags }}"
+            }
+          }
+        }
+      },
+      "id": "apply-tags",
+      "name": "Apply Tags",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1650, 300],
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.BITRIX24_WEBHOOK_URL }}im.notify.system.add",
+        "method": "POST",
+        "body": {
+          "mode": "json",
+          "json": {
+            "USER_ID": "={{ $node['Get Task Details'].json.result.task.responsibleId }}",
+            "MESSAGE": "Задача #{{ $node['Get Task Details'].json.result.task.id }} \"{{ $node['Get Task Details'].json.result.task.title }}\" готова к работе. Теги: {{ $node['AI: Classify Tags'].json.tags.join(', ') }}"
+          }
+        }
+      },
+      "id": "notify-responsible",
+      "name": "Notify Responsible",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1850, 300],
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bitrix-comments",
+        "responseMode": "onReceived"
+      },
+      "id": "comment-webhook",
+      "name": "Comment Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 550],
+      "webhookId": "bitrix-comments"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.event }}",
+              "operation": "equals",
+              "value2": "ONTASKCOMMENTADD"
+            }
+          ]
+        }
+      },
+      "id": "is-comment-event",
+      "name": "Is Comment?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [450, 550]
+    },
+    {
+      "parameters": {},
+      "id": "no-op",
+      "name": "No Operation",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [650, 450]
+    }
+  ],
+  "connections": {
+    "Bitrix24 Webhook": {
+      "main": [
+        [
+          {
+            "node": "Is New Task?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is New Task?": {
+      "main": [
+        [
+          {
+            "node": "Get Task Details",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Task Details": {
+      "main": [
+        [
+          {
+            "node": "Get Creator Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Creator Info": {
+      "main": [
+        [
+          {
+            "node": "AI: Analyze Task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI: Analyze Task": {
+      "main": [
+        [
+          {
+            "node": "Needs Clarification?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs Clarification?": {
+      "main": [
+        [
+          {
+            "node": "AI: Generate Questions",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI: Classify Tags",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI: Generate Questions": {
+      "main": [
+        [
+          {
+            "node": "Post Questions to Task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post Questions to Task": {
+      "main": [
+        [
+          {
+            "node": "Add Pending Tag",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI: Classify Tags": {
+      "main": [
+        [
+          {
+            "node": "Apply Tags",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apply Tags": {
+      "main": [
+        [
+          {
+            "node": "Notify Responsible",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Comment Webhook": {
+      "main": [
+        [
+          {
+            "node": "Is Comment?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "staticData": null,
+  "meta": {
+    "templateId": "ai-ba-bitrix24",
+    "instanceId": ""
+  },
+  "tags": [
+    {
+      "name": "AI",
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z"
+    },
+    {
+      "name": "Bitrix24",
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z"
+    }
+  ]
+}
