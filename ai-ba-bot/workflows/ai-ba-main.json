@@ -226,7 +226,22 @@
     },
     {
       "parameters": {
-        "url": "={{ $('⚙️ Настройки').item.json.BITRIX24_WEBHOOK_URL }}task.commentitem.add?TASKID={{ $('Получить данные задачи').item.json.result.task.id }}&FIELDS[POST_MESSAGE]={{ encodeURIComponent($json.formatted_message) }}"
+        "method": "POST",
+        "url": "={{ $('⚙️ Настройки').item.json.BITRIX24_WEBHOOK_URL }}task.commentitem.add",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "TASKID",
+              "value": "={{ $('Получить данные задачи').item.json.result.task.id }}"
+            },
+            {
+              "name": "FIELDS[POST_MESSAGE]",
+              "value": "={{ $json.formatted_message }}"
+            }
+          ]
+        }
       },
       "id": "post-questions-comment",
       "name": "Отправить вопросы в задачу",
