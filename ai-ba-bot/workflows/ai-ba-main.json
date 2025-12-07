@@ -27,39 +27,6 @@
     },
     {
       "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "bitrix-url",
-              "name": "BITRIX24_WEBHOOK_URL",
-              "value": "https://ваш-домен.bitrix24.ru/rest/1/ваш-токен/",
-              "type": "string"
-            },
-            {
-              "id": "bot-user-id",
-              "name": "BOT_USER_ID",
-              "value": "",
-              "type": "string"
-            },
-            {
-              "id": "min-score",
-              "name": "MIN_COMPLETENESS_SCORE",
-              "value": "70",
-              "type": "string"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "settings-node",
-      "name": "⚙️ Настройки",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [400, 300],
-      "notes": "🔧 НАСТРОЙТЕ ЗДЕСЬ:\n\n1. BITRIX24_WEBHOOK_URL:\n   Вставьте URL входящего вебхука из Битрикс24\n   Формат: https://xxx.bitrix24.ru/rest/1/токен/\n   ⚠️ URL должен заканчиваться на /\n\n2. BOT_USER_ID:\n   ID пользователя бота в Битрикс24\n   (можно оставить пустым)\n\n3. MIN_COMPLETENESS_SCORE:\n   Минимальный балл полноты (по умолчанию 70)"
-    },
-    {
-      "parameters": {
         "httpMethod": "POST",
         "path": "bitrix-tasks",
         "responseMode": "onReceived",
@@ -69,7 +36,7 @@
       "name": "Вебхук: Новая задача",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [400, 500],
+      "position": [400, 300],
       "webhookId": "bitrix-tasks",
       "notes": "Точка входа для событий из Битрикс24.\n\nСкопируйте Production URL и вставьте в:\nБитрикс24 → Приложения → Исходящий вебхук\nСобытие: ONTASKADD"
     },
@@ -89,24 +56,47 @@
       "name": "Это новая задача?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [600, 500],
+      "position": [600, 300],
       "notes": "Проверяем тип события.\nОбрабатываем только создание новых задач (ONTASKADD)."
     },
     {
       "parameters": {
-        "mode": "combine",
-        "mergeByFields": {
-          "values": []
+        "assignments": {
+          "assignments": [
+            {
+              "id": "bitrix-url",
+              "name": "BITRIX24_WEBHOOK_URL",
+              "value": "https://ваш-домен.bitrix24.ru/rest/1/ваш-токен/",
+              "type": "string"
+            },
+            {
+              "id": "bot-user-id",
+              "name": "BOT_USER_ID",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "min-score",
+              "name": "MIN_COMPLETENESS_SCORE",
+              "value": "70",
+              "type": "string"
+            },
+            {
+              "id": "event-data",
+              "name": "eventData",
+              "value": "={{ $json }}",
+              "type": "object"
+            }
+          ]
         },
-        "combinationMode": "multiplex",
         "options": {}
       },
-      "id": "merge-settings",
-      "name": "Объединить с настройками",
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 3,
-      "position": [800, 400],
-      "notes": "Объединяем данные события с настройками из ноды ⚙️ Настройки"
+      "id": "settings-node",
+      "name": "⚙️ Настройки",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [800, 200],
+      "notes": "🔧 НАСТРОЙТЕ ЗДЕСЬ:\n\n1. BITRIX24_WEBHOOK_URL:\n   Вставьте URL входящего вебхука из Битрикс24\n   Формат: https://xxx.bitrix24.ru/rest/1/токен/\n   ⚠️ URL должен заканчиваться на /\n\n2. BOT_USER_ID:\n   ID пользователя бота в Битрикс24\n   (можно оставить пустым)\n\n3. MIN_COMPLETENESS_SCORE:\n   Минимальный балл полноты (по умолчанию 70)"
     },
     {
       "parameters": {
@@ -116,7 +106,7 @@
             "values": [
               {
                 "name": "taskId",
-                "value": "={{ $json.data.FIELDS_AFTER.ID }}"
+                "value": "={{ $json.eventData.data.FIELDS_AFTER.ID }}"
               }
             ]
           }
@@ -126,25 +116,9 @@
       "name": "Получить данные задачи",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
-      "position": [1000, 400],
+      "position": [1000, 200],
       "credentials": {},
       "notes": "Запрашиваем полные данные задачи из Битрикс24 API.\nПолучаем: заголовок, описание, приоритет, исполнителя, постановщика, теги."
-    },
-    {
-      "parameters": {
-        "mode": "combine",
-        "mergeByFields": {
-          "values": []
-        },
-        "combinationMode": "multiplex",
-        "options": {}
-      },
-      "id": "merge-task-settings",
-      "name": "Сохранить настройки",
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 3,
-      "position": [1200, 350],
-      "notes": "Сохраняем настройки для использования в следующих нодах"
     },
     {
       "parameters": {
@@ -164,7 +138,7 @@
       "name": "Получить данные постановщика",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
-      "position": [1400, 400],
+      "position": [1200, 200],
       "credentials": {},
       "notes": "Получаем имя и фамилию постановщика задачи.\nИспользуется для персонализации обращения в вопросах."
     },
@@ -193,7 +167,7 @@
       "name": "ИИ: Анализ полноты описания",
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 1,
-      "position": [1600, 400],
+      "position": [1400, 200],
       "credentials": {
         "openAiApi": {
           "id": "",
@@ -218,7 +192,7 @@
       "name": "Нужны уточнения?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [1800, 400],
+      "position": [1600, 200],
       "notes": "Ветвление по результату анализа:\n\n• Score <= порог: Информации недостаточно → генерируем вопросы\n• Score > порог: Информации достаточно → классифицируем и уведомляем\n\nПорог настраивается в ноде ⚙️ Настройки (по умолчанию 70)"
     },
     {
@@ -246,7 +220,7 @@
       "name": "ИИ: Генерация вопросов",
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 1,
-      "position": [2000, 300],
+      "position": [1800, 100],
       "credentials": {
         "openAiApi": {
           "id": "",
@@ -273,7 +247,7 @@
       "name": "Отправить вопросы в задачу",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
-      "position": [2200, 300],
+      "position": [2000, 100],
       "credentials": {},
       "notes": "Добавляем комментарий с вопросами в задачу Битрикс24.\nПостановщик получит уведомление о новом комментарии."
     },
@@ -295,7 +269,7 @@
       "name": "Установить тег: Ожидает ответа",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
-      "position": [2400, 300],
+      "position": [2200, 100],
       "credentials": {},
       "notes": "Устанавливаем служебный тег ba_pending.\nОзначает, что бот ожидает ответа от постановщика.\n\nЭтот тег будет заменён на ready_to_work после формирования ТЗ."
     },
@@ -324,7 +298,7 @@
       "name": "ИИ: Классификация тегов",
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 1,
-      "position": [2000, 500],
+      "position": [1800, 300],
       "credentials": {
         "openAiApi": {
           "id": "",
@@ -351,7 +325,7 @@
       "name": "Применить теги к задаче",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
-      "position": [2200, 500],
+      "position": [2000, 300],
       "credentials": {},
       "notes": "Обновляем задачу в Битрикс24:\n- Устанавливаем классификационные теги\n- Добавляем тег ready_to_work (задача готова)"
     },
@@ -371,7 +345,7 @@
       "name": "Уведомить исполнителя",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
-      "position": [2400, 500],
+      "position": [2200, 300],
       "credentials": {},
       "notes": "Отправляем системное уведомление исполнителю задачи.\nСообщаем, что задача проанализирована и готова к работе."
     },
@@ -385,7 +359,7 @@
       "name": "Вебхук: Новый комментарий",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [400, 700],
+      "position": [400, 500],
       "webhookId": "bitrix-comments",
       "notes": "Точка входа для событий комментариев из Битрикс24.\n\nСкопируйте Production URL и вставьте в:\nБитрикс24 → Приложения → Исходящий вебхук\nСобытие: ONTASKCOMMENTADD\n\n⚠️ TODO: Реализовать обработку ответов"
     },
@@ -405,7 +379,7 @@
       "name": "Это комментарий?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [600, 700],
+      "position": [600, 500],
       "notes": "Проверяем тип события.\n\n⚠️ TODO: Добавить логику обработки ответов:\n1. Проверить, что комментарий от постановщика\n2. Проверить, что задача имеет тег ba_pending\n3. Обработать ответы и обновить описание"
     },
     {
@@ -414,22 +388,11 @@
       "name": "Пропустить",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [800, 600],
+      "position": [800, 400],
       "notes": "Заглушка для событий, которые не обрабатываются."
     }
   ],
   "connections": {
-    "⚙️ Настройки": {
-      "main": [
-        [
-          {
-            "node": "Объединить с настройками",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Вебхук: Новая задача": {
       "main": [
         [
@@ -445,9 +408,9 @@
       "main": [
         [
           {
-            "node": "Объединить с настройками",
+            "node": "⚙️ Настройки",
             "type": "main",
-            "index": 1
+            "index": 0
           }
         ],
         [
@@ -459,7 +422,7 @@
         ]
       ]
     },
-    "Объединить с настройками": {
+    "⚙️ Настройки": {
       "main": [
         [
           {
@@ -471,17 +434,6 @@
       ]
     },
     "Получить данные задачи": {
-      "main": [
-        [
-          {
-            "node": "Сохранить настройки",
-            "type": "main",
-            "index": 1
-          }
-        ]
-      ]
-    },
-    "Сохранить настройки": {
       "main": [
         [
           {
@@ -615,15 +567,5 @@
       "updatedAt": "2024-01-01T00:00:00.000Z"
     }
   ],
-  "pinData": {
-    "⚙️ Настройки": [
-      {
-        "json": {
-          "BITRIX24_WEBHOOK_URL": "https://ваш-домен.bitrix24.ru/rest/1/ваш-токен/",
-          "BOT_USER_ID": "",
-          "MIN_COMPLETENESS_SCORE": "70"
-        }
-      }
-    ]
-  }
+  "pinData": {}
 }
