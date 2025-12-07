@@ -1,5 +1,5 @@
 {
-  "name": "AI Business Analyst - Bitrix24",
+  "name": "ИИ Бизнес-аналитик - Битрикс24",
   "nodes": [
     {
       "parameters": {
@@ -9,11 +9,12 @@
         "responseData": "allEntries"
       },
       "id": "webhook-trigger",
-      "name": "Bitrix24 Webhook",
+      "name": "Вебхук: Новая задача",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [250, 300],
-      "webhookId": "bitrix-tasks"
+      "webhookId": "bitrix-tasks",
+      "notes": "Точка входа для событий из Битрикс24.\nНастройте исходящий вебхук в Битрикс24 на этот URL.\nСобытие: ONTASKADD (создание задачи)"
     },
     {
       "parameters": {
@@ -28,10 +29,11 @@
         }
       },
       "id": "check-event-type",
-      "name": "Is New Task?",
+      "name": "Это новая задача?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [450, 300]
+      "position": [450, 300],
+      "notes": "Проверяем тип события.\nОбрабатываем только создание новых задач (ONTASKADD).\nОстальные события игнорируются."
     },
     {
       "parameters": {
@@ -48,11 +50,12 @@
         }
       },
       "id": "get-task-details",
-      "name": "Get Task Details",
+      "name": "Получить данные задачи",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
       "position": [650, 200],
-      "credentials": {}
+      "credentials": {},
+      "notes": "Запрашиваем полные данные задачи из Битрикс24 API.\nПолучаем: заголовок, описание, приоритет, исполнителя, постановщика, теги."
     },
     {
       "parameters": {
@@ -69,11 +72,12 @@
         }
       },
       "id": "get-creator-info",
-      "name": "Get Creator Info",
+      "name": "Получить данные постановщика",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
       "position": [850, 200],
-      "credentials": {}
+      "credentials": {},
+      "notes": "Получаем имя и фамилию постановщика задачи.\nИспользуется для персонализации обращения в вопросах."
     },
     {
       "parameters": {
@@ -90,14 +94,14 @@
             },
             {
               "role": "user",
-              "content": "Проанализируй задачу:\n\nЗаголовок: {{ $json.task.title }}\nОписание: {{ $json.task.description }}\nПриоритет: {{ $json.task.priority }}\n\nВерни JSON:\n{\n  \"is_complete\": true/false,\n  \"completeness_score\": 0-100,\n  \"missing_info\": [\"список недостающей информации\"],\n  \"task_type\": \"bug/feature/report/integration/other\"\n}"
+              "content": "Проанализируй задачу:\n\nЗаголовок: {{ $json.result.task.title }}\nОписание: {{ $json.result.task.description }}\nПриоритет: {{ $json.result.task.priority }}\n\nВерни JSON:\n{\n  \"is_complete\": true/false,\n  \"completeness_score\": 0-100,\n  \"missing_info\": [\"список недостающей информации\"],\n  \"task_type\": \"bug/feature/improvement/research/support\"\n}"
             }
           ]
         },
         "jsonOutput": true
       },
       "id": "analyze-task",
-      "name": "AI: Analyze Task",
+      "name": "ИИ: Анализ полноты описания",
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 1,
       "position": [1050, 200],
@@ -106,7 +110,8 @@
           "id": "",
           "name": "OpenAI"
         }
-      }
+      },
+      "notes": "ИИ анализирует описание задачи и оценивает его полноту.\n\nВыходные данные:\n- completeness_score: 0-100 (оценка полноты)\n- missing_info: список недостающей информации\n- task_type: тип задачи для классификации\n\nЕсли score <= 70, задача требует уточнений."
     },
     {
       "parameters": {
@@ -121,10 +126,11 @@
         }
       },
       "id": "needs-clarification",
-      "name": "Needs Clarification?",
+      "name": "Нужны уточнения?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [1250, 200]
+      "position": [1250, 200],
+      "notes": "Ветвление по результату анализа:\n\n• Score <= 70: Информации недостаточно → генерируем вопросы\n• Score > 70: Информации достаточно → классифицируем и уведомляем"
     },
     {
       "parameters": {
@@ -137,18 +143,18 @@
           "values": [
             {
               "role": "system",
-              "content": "Ты - вежливый и профессиональный бизнес-аналитик. Сформулируй уточняющие вопросы к постановщику задачи. Правила: 1. Вопросы конкретные и понятные 2. Используй нумерованный список 3. Не больше 6 вопросов 4. Пиши на русском"
+              "content": "Ты - вежливый и профессиональный бизнес-аналитик. Сформулируй уточняющие вопросы к постановщику задачи.\n\nПравила:\n1. Вопросы конкретные и понятные\n2. Используй нумерованный список\n3. Где возможно, предлагай варианты ответа\n4. Не больше 6 вопросов\n5. Пиши на русском языке\n6. Обращайся по имени"
             },
             {
               "role": "user",
-              "content": "Сгенерируй вопросы для задачи:\n\nЗаголовок: {{ $node['Get Task Details'].json.result.task.title }}\nОписание: {{ $node['Get Task Details'].json.result.task.description }}\nНедостающая информация: {{ $node['AI: Analyze Task'].json.missing_info }}\nПостановщик: {{ $node['Get Creator Info'].json.result[0].NAME }} {{ $node['Get Creator Info'].json.result[0].LAST_NAME }}\n\nВерни JSON с полем formatted_message содержащим готовое сообщение."
+              "content": "Сгенерируй вопросы для задачи:\n\nЗаголовок: {{ $node['Получить данные задачи'].json.result.task.title }}\nОписание: {{ $node['Получить данные задачи'].json.result.task.description }}\nНедостающая информация: {{ $node['ИИ: Анализ полноты описания'].json.missing_info }}\nПостановщик: {{ $node['Получить данные постановщика'].json.result[0].NAME }} {{ $node['Получить данные постановщика'].json.result[0].LAST_NAME }}\n\nВерни JSON:\n{\n  \"formatted_message\": \"Полное отформатированное сообщение для отправки в комментарий\"\n}"
             }
           ]
         },
         "jsonOutput": true
       },
       "id": "generate-questions",
-      "name": "AI: Generate Questions",
+      "name": "ИИ: Генерация вопросов",
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 1,
       "position": [1450, 100],
@@ -157,7 +163,8 @@
           "id": "",
           "name": "OpenAI"
         }
-      }
+      },
+      "notes": "ИИ генерирует персонализированные уточняющие вопросы.\n\nФормат сообщения:\n- Приветствие с именем постановщика\n- Нумерованный список вопросов (до 6 шт)\n- Варианты ответов где уместно\n- Подпись бота"
     },
     {
       "parameters": {
@@ -166,7 +173,7 @@
         "body": {
           "mode": "json",
           "json": {
-            "TASKID": "={{ $node['Get Task Details'].json.result.task.id }}",
+            "TASKID": "={{ $node['Получить данные задачи'].json.result.task.id }}",
             "FIELDS": {
               "POST_MESSAGE": "={{ $json.formatted_message }}"
             }
@@ -174,11 +181,12 @@
         }
       },
       "id": "post-questions-comment",
-      "name": "Post Questions to Task",
+      "name": "Отправить вопросы в задачу",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
       "position": [1650, 100],
-      "credentials": {}
+      "credentials": {},
+      "notes": "Добавляем комментарий с вопросами в задачу Битрикс24.\nПостановщик получит уведомление о новом комментарии."
     },
     {
       "parameters": {
@@ -187,19 +195,20 @@
         "body": {
           "mode": "json",
           "json": {
-            "taskId": "={{ $node['Get Task Details'].json.result.task.id }}",
+            "taskId": "={{ $node['Получить данные задачи'].json.result.task.id }}",
             "fields": {
-              "TAGS": ["требует_уточнения"]
+              "TAGS": ["ba_pending"]
             }
           }
         }
       },
       "id": "add-pending-tag",
-      "name": "Add Pending Tag",
+      "name": "Установить тег: Ожидает ответа",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
       "position": [1850, 100],
-      "credentials": {}
+      "credentials": {},
+      "notes": "Устанавливаем служебный тег ba_pending.\nОзначает, что бот ожидает ответа от постановщика.\n\nЭтот тег будет заменён на ready_to_work после формирования ТЗ."
     },
     {
       "parameters": {
@@ -216,14 +225,14 @@
             },
             {
               "role": "user",
-              "content": "Задача:\nЗаголовок: {{ $node['Get Task Details'].json.result.task.title }}\nОписание: {{ $node['Get Task Details'].json.result.task.description }}\nПриоритет Битрикс: {{ $node['Get Task Details'].json.result.task.priority }}\n\nВерни JSON: {\"type\": \"тег_типа\", \"priority\": \"тег_приоритета\", \"area\": [], \"module\": [], \"all_tags\": []}"
+              "content": "Задача:\nЗаголовок: {{ $node['Получить данные задачи'].json.result.task.title }}\nОписание: {{ $node['Получить данные задачи'].json.result.task.description }}\nПриоритет Битрикс: {{ $node['Получить данные задачи'].json.result.task.priority }}\n\nВерни JSON:\n{\n  \"type\": \"тег_типа\",\n  \"priority\": \"тег_приоритета\",\n  \"area\": [\"теги_области\"],\n  \"module\": [\"теги_модуля\"],\n  \"all_tags\": [\"все_теги_списком\"]\n}"
             }
           ]
         },
         "jsonOutput": true
       },
       "id": "classify-tags",
-      "name": "AI: Classify Tags",
+      "name": "ИИ: Классификация тегов",
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 1,
       "position": [1450, 300],
@@ -232,7 +241,8 @@
           "id": "",
           "name": "OpenAI"
         }
-      }
+      },
+      "notes": "ИИ классифицирует задачу по фиксированному списку тегов.\n\nКатегории:\n• Тип: bug, feature, improvement, research, support\n• Приоритет: critical, high, medium, low\n• Область: frontend, backend, database, integration, mobile, infrastructure\n• Модуль: sales, marketing, finance, hr, operations\n\nМаксимум 6 тегов на задачу."
     },
     {
       "parameters": {
@@ -241,7 +251,7 @@
         "body": {
           "mode": "json",
           "json": {
-            "taskId": "={{ $node['Get Task Details'].json.result.task.id }}",
+            "taskId": "={{ $node['Получить данные задачи'].json.result.task.id }}",
             "fields": {
               "TAGS": "={{ $json.all_tags }}"
             }
@@ -249,11 +259,12 @@
         }
       },
       "id": "apply-tags",
-      "name": "Apply Tags",
+      "name": "Применить теги к задаче",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
       "position": [1650, 300],
-      "credentials": {}
+      "credentials": {},
+      "notes": "Обновляем задачу в Битрикс24, устанавливая классификационные теги.\nТеги помогают фильтровать и группировать задачи."
     },
     {
       "parameters": {
@@ -262,17 +273,18 @@
         "body": {
           "mode": "json",
           "json": {
-            "USER_ID": "={{ $node['Get Task Details'].json.result.task.responsibleId }}",
-            "MESSAGE": "Задача #{{ $node['Get Task Details'].json.result.task.id }} \"{{ $node['Get Task Details'].json.result.task.title }}\" готова к работе. Теги: {{ $node['AI: Classify Tags'].json.all_tags.join(', ') }}"
+            "USER_ID": "={{ $node['Получить данные задачи'].json.result.task.responsibleId }}",
+            "MESSAGE": "Задача #{{ $node['Получить данные задачи'].json.result.task.id }} \"{{ $node['Получить данные задачи'].json.result.task.title }}\" готова к работе.\n\nТеги: {{ $node['ИИ: Классификация тегов'].json.all_tags.join(', ') }}\n\n— ИИ Бизнес-аналитик"
           }
         }
       },
       "id": "notify-responsible",
-      "name": "Notify Responsible",
+      "name": "Уведомить исполнителя",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
       "position": [1850, 300],
-      "credentials": {}
+      "credentials": {},
+      "notes": "Отправляем системное уведомление исполнителю задачи.\nСообщаем, что задача проанализирована и готова к работе."
     },
     {
       "parameters": {
@@ -281,11 +293,12 @@
         "responseMode": "onReceived"
       },
       "id": "comment-webhook",
-      "name": "Comment Webhook",
+      "name": "Вебхук: Новый комментарий",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [250, 550],
-      "webhookId": "bitrix-comments"
+      "webhookId": "bitrix-comments",
+      "notes": "Точка входа для событий комментариев из Битрикс24.\nСобытие: ONTASKCOMMENTADD\n\n⚠️ TODO: Реализовать обработку ответов постановщика"
     },
     {
       "parameters": {
@@ -300,150 +313,152 @@
         }
       },
       "id": "is-comment-event",
-      "name": "Is Comment?",
+      "name": "Это комментарий?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [450, 550]
+      "position": [450, 550],
+      "notes": "Проверяем тип события.\n\n⚠️ TODO: Добавить логику обработки ответов:\n1. Проверить, что комментарий от постановщика\n2. Проверить, что задача имеет тег ba_pending\n3. Обработать ответы и обновить описание"
     },
     {
       "parameters": {},
       "id": "no-op",
-      "name": "No Operation",
+      "name": "Пропустить",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [650, 450]
+      "position": [650, 450],
+      "notes": "Заглушка для событий, которые не обрабатываются."
     }
   ],
   "connections": {
-    "Bitrix24 Webhook": {
+    "Вебхук: Новая задача": {
       "main": [
         [
           {
-            "node": "Is New Task?",
+            "node": "Это новая задача?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Is New Task?": {
+    "Это новая задача?": {
       "main": [
         [
           {
-            "node": "Get Task Details",
+            "node": "Получить данные задачи",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "No Operation",
+            "node": "Пропустить",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Get Task Details": {
+    "Получить данные задачи": {
       "main": [
         [
           {
-            "node": "Get Creator Info",
+            "node": "Получить данные постановщика",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Get Creator Info": {
+    "Получить данные постановщика": {
       "main": [
         [
           {
-            "node": "AI: Analyze Task",
+            "node": "ИИ: Анализ полноты описания",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "AI: Analyze Task": {
+    "ИИ: Анализ полноты описания": {
       "main": [
         [
           {
-            "node": "Needs Clarification?",
+            "node": "Нужны уточнения?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Needs Clarification?": {
+    "Нужны уточнения?": {
       "main": [
         [
           {
-            "node": "AI: Generate Questions",
+            "node": "ИИ: Генерация вопросов",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "AI: Classify Tags",
+            "node": "ИИ: Классификация тегов",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "AI: Generate Questions": {
+    "ИИ: Генерация вопросов": {
       "main": [
         [
           {
-            "node": "Post Questions to Task",
+            "node": "Отправить вопросы в задачу",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Post Questions to Task": {
+    "Отправить вопросы в задачу": {
       "main": [
         [
           {
-            "node": "Add Pending Tag",
+            "node": "Установить тег: Ожидает ответа",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "AI: Classify Tags": {
+    "ИИ: Классификация тегов": {
       "main": [
         [
           {
-            "node": "Apply Tags",
+            "node": "Применить теги к задаче",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Apply Tags": {
+    "Применить теги к задаче": {
       "main": [
         [
           {
-            "node": "Notify Responsible",
+            "node": "Уведомить исполнителя",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Comment Webhook": {
+    "Вебхук: Новый комментарий": {
       "main": [
         [
           {
-            "node": "Is Comment?",
+            "node": "Это комментарий?",
             "type": "main",
             "index": 0
           }
@@ -463,12 +478,17 @@
   },
   "tags": [
     {
-      "name": "AI",
+      "name": "ИИ",
       "createdAt": "2024-01-01T00:00:00.000Z",
       "updatedAt": "2024-01-01T00:00:00.000Z"
     },
     {
-      "name": "Bitrix24",
+      "name": "Битрикс24",
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z"
+    },
+    {
+      "name": "Бизнес-аналитик",
       "createdAt": "2024-01-01T00:00:00.000Z",
       "updatedAt": "2024-01-01T00:00:00.000Z"
     }
