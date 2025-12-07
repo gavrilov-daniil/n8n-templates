@@ -205,7 +205,7 @@
             },
             {
               "role": "user",
-              "content": "Сгенерируй вопросы для задачи:\n\nЗаголовок: {{ $('Получить данные задачи').item.json.result.task.title }}\nОписание: {{ $('Получить данные задачи').item.json.result.task.description }}\nНедостающая информация: {{ $('ИИ: Анализ полноты описания').item.json.missing_info }}\nПостановщик: {{ $('Получить данные постановщика').item.json.result[0].NAME }} {{ $('Получить данные постановщика').item.json.result[0].LAST_NAME }}\n\nВерни JSON:\n{\n  \"formatted_message\": \"Полное отформатированное сообщение для отправки в комментарий\"\n}"
+              "content": "={{ 'Сгенерируй вопросы для задачи:\\n\\nЗаголовок: ' + $('Получить данные задачи').item.json.result.task.title + '\\nОписание: ' + ($('Получить данные задачи').item.json.result.task.description || 'Не указано') + '\\nНедостающая информация: ' + JSON.stringify($('ИИ: Анализ полноты описания').item.json.missing_info) + '\\nПостановщик: ' + $('Получить данные постановщика').item.json.result[0].NAME + ' ' + $('Получить данные постановщика').item.json.result[0].LAST_NAME + '\\n\\nВерни JSON:\\n{\\n  \"formatted_message\": \"Полное отформатированное сообщение для отправки в комментарий\"\\n}' }}"
             }
           ]
         },
@@ -238,7 +238,7 @@
             },
             {
               "name": "FIELDS[POST_MESSAGE]",
-              "value": "={{ $json.message.content.formatted_message }}"
+              "value": "={{ '[USER=' + $('Получить данные задачи').item.json.result.task.createdBy + '][/USER]\\n\\n' + $json.message.content.formatted_message }}"
             }
           ]
         }
