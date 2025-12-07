@@ -238,7 +238,7 @@
             },
             {
               "name": "FIELDS[POST_MESSAGE]",
-              "value": "={{ $json.formatted_message }}"
+              "value": "={{ $json.message.content.formatted_message }}"
             }
           ]
         }
