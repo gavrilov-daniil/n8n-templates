@@ -105,7 +105,7 @@
     },
     {
       "parameters": {
-        "url": "={{ $json.BITRIX24_WEBHOOK_URL }}tasks.task.get?taskId={{ $json.eventData.data.FIELDS_AFTER.ID }}"
+        "url": "={{ $json.BITRIX24_WEBHOOK_URL }}tasks.task.get?taskId={{ $('Парсинг данных Битрикс').item.json.data.FIELDS_AFTER.ID }}"
       },
       "id": "get-task-details",
       "name": "Получить данные задачи",
