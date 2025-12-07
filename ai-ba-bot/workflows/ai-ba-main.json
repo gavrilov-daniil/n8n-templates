@@ -253,16 +253,21 @@
     },
     {
       "parameters": {
-        "url": "={{ $('⚙️ Настройки').item.json.BITRIX24_WEBHOOK_URL }}tasks.task.update",
         "method": "POST",
-        "body": {
-          "mode": "json",
-          "json": {
-            "taskId": "={{ $('Получить данные задачи').item.json.result.task.id }}",
-            "fields": {
-              "TAGS": ["ba_pending"]
+        "url": "={{ $('⚙️ Настройки').item.json.BITRIX24_WEBHOOK_URL }}tasks.task.update",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "taskId",
+              "value": "={{ $('Получить данные задачи').item.json.result.task.id }}"
+            },
+            {
+              "name": "fields[TAGS][0]",
+              "value": "ba_pending"
             }
-          }
+          ]
         }
       },
       "id": "add-pending-tag",
@@ -309,17 +314,7 @@
     },
     {
       "parameters": {
-        "url": "={{ $('⚙️ Настройки').item.json.BITRIX24_WEBHOOK_URL }}tasks.task.update",
-        "method": "POST",
-        "body": {
-          "mode": "json",
-          "json": {
-            "taskId": "={{ $('Получить данные задачи').item.json.result.task.id }}",
-            "fields": {
-              "TAGS": "={{ $json.all_tags.concat(['ready_to_work']) }}"
-            }
-          }
-        }
+        "url": "={{ $('⚙️ Настройки').item.json.BITRIX24_WEBHOOK_URL }}tasks.task.update?taskId={{ $('Получить данные задачи').item.json.result.task.id }}&fields[TAGS][0]={{ $json.message.content.all_tags[0] || 'feature' }}&fields[TAGS][1]={{ $json.message.content.all_tags[1] || 'medium' }}&fields[TAGS][2]=ready_to_work"
       },
       "id": "apply-tags",
       "name": "Применить теги к задаче",
