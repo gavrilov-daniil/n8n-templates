@@ -238,7 +238,7 @@
             },
             {
               "name": "FIELDS[POST_MESSAGE]",
-              "value": "={{ '[USER=' + $('Получить данные задачи').item.json.result.task.createdBy + ']' + $('Получить данные постановщика').item.json.result[0].NAME + '[/USER]\\n\\n' + $json.message.content.formatted_message }}"
+              "value": "={{ '[USER=' + $('Получить данные задачи').item.json.result.task.createdBy + ']' + $('Получить данные постановщика').first().json.result[0].NAME + '[/USER]\\n\\n' + $json.message.content.formatted_message }}"
             }
           ]
         }
