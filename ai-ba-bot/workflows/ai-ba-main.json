@@ -326,14 +326,21 @@
     },
     {
       "parameters": {
-        "url": "={{ $('⚙️ Настройки').item.json.BITRIX24_WEBHOOK_URL }}im.notify.system.add",
         "method": "POST",
-        "body": {
-          "mode": "json",
-          "json": {
-            "USER_ID": "={{ $('Получить данные задачи').item.json.result.task.responsibleId }}",
-            "MESSAGE": "Задача #{{ $('Получить данные задачи').item.json.result.task.id }} \"{{ $('Получить данные задачи').item.json.result.task.title }}\" готова к работе.\n\nТеги: {{ $('ИИ: Классификация тегов').item.json.all_tags.join(', ') }}\n\n— ИИ Бизнес-аналитик"
-          }
+        "url": "={{ $('⚙️ Настройки').item.json.BITRIX24_WEBHOOK_URL }}im.notify.system.add",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "USER_ID",
+              "value": "={{ $('Получить данные задачи').item.json.result.task.responsibleId }}"
+            },
+            {
+              "name": "MESSAGE",
+              "value": "Задача #{{ $('Получить данные задачи').item.json.result.task.id }} \"{{ $('Получить данные задачи').item.json.result.task.title }}\" готова к работе.\n\nТеги: {{ $('ИИ: Классификация тегов').item.json.message.content.all_tags.join(', ') }}\n\n— ИИ Бизнес-аналитик"
+            }
+          ]
         }
       },
       "id": "notify-responsible",
