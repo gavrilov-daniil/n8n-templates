@@ -205,18 +205,18 @@
       "parameters": {
         "model": "gpt-3.5-turbo",
         "options": {
-          "temperature": 0.2,
-          "maxTokens": 500
+          "temperature": 0.1,
+          "maxTokens": 400
         },
         "messages": {
           "values": [
             {
               "role": "system",
-              "content": "Проклассифицируй задачу и назначь теги из списка: bug, feature, enhancement, frontend, backend, database, api, critical, high_priority, sales, marketing, crm, reports, automation, urgent"
+              "content": "Ты - система классификации задач. Назначай теги СТРОГО из фиксированного списка.\n\nТИП (обязательно 1): bug, feature, improvement, research, support\nПРИОРИТЕТ (обязательно 1): critical, high, medium, low\nОБЛАСТЬ (0-2): frontend, backend, database, integration, mobile, infrastructure\nМОДУЛЬ (0-2): sales, marketing, finance, hr, operations\n\nМаппинг приоритетов Битрикс: 0=low, 1=medium, 2=high, 3=critical\nСлова 'срочно','ASAP','блокер','не работает' = critical\n\nМаксимум 6 тегов. Новые теги ЗАПРЕЩЕНЫ."
             },
             {
               "role": "user",
-              "content": "Задача:\nЗаголовок: {{ $node['Get Task Details'].json.result.task.title }}\nОписание: {{ $node['Get Task Details'].json.result.task.description }}\n\nВерни JSON: {\"tags\": [\"tag1\", \"tag2\"]}"
+              "content": "Задача:\nЗаголовок: {{ $node['Get Task Details'].json.result.task.title }}\nОписание: {{ $node['Get Task Details'].json.result.task.description }}\nПриоритет Битрикс: {{ $node['Get Task Details'].json.result.task.priority }}\n\nВерни JSON: {\"type\": \"тег_типа\", \"priority\": \"тег_приоритета\", \"area\": [], \"module\": [], \"all_tags\": []}"
             }
           ]
         },
@@ -243,7 +243,7 @@
           "json": {
             "taskId": "={{ $node['Get Task Details'].json.result.task.id }}",
             "fields": {
-              "TAGS": "={{ $json.tags }}"
+              "TAGS": "={{ $json.all_tags }}"
             }
           }
         }
@@ -263,7 +263,7 @@
           "mode": "json",
           "json": {
             "USER_ID": "={{ $node['Get Task Details'].json.result.task.responsibleId }}",
-            "MESSAGE": "Задача #{{ $node['Get Task Details'].json.result.task.id }} \"{{ $node['Get Task Details'].json.result.task.title }}\" готова к работе. Теги: {{ $node['AI: Classify Tags'].json.tags.join(', ') }}"
+            "MESSAGE": "Задача #{{ $node['Get Task Details'].json.result.task.id }} \"{{ $node['Get Task Details'].json.result.task.title }}\" готова к работе. Теги: {{ $node['AI: Classify Tags'].json.all_tags.join(', ') }}"
           }
         }
       },
