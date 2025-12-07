@@ -42,6 +42,17 @@
     },
     {
       "parameters": {
+        "jsCode": "// Парсинг данных из Битрикс24\n// Битрикс отправляет данные в формате: data[FIELDS_AFTER][ID] = 123\n// Преобразуем в вложенный объект: {data: {FIELDS_AFTER: {ID: 123}}}\n\nconst input = $input.first().json;\nconst result = {};\n\nfor (const [key, value] of Object.entries(input)) {\n  // Разбираем ключи вида: data[FIELDS_AFTER][ID]\n  const matches = key.match(/^([^\\[]+)(?:\\[([^\\]]+)\\])?(?:\\[([^\\]]+)\\])?$/);\n  \n  if (matches) {\n    const [, first, second, third] = matches;\n    \n    if (third) {\n      // Три уровня: data[FIELDS_AFTER][ID]\n      result[first] = result[first] || {};\n      result[first][second] = result[first][second] || {};\n      result[first][second][third] = value;\n    } else if (second) {\n      // Два уровня: auth[domain]\n      result[first] = result[first] || {};\n      result[first][second] = value;\n    } else {\n      // Один уровень: event\n      result[first] = value;\n    }\n  }\n}\n\nreturn { json: result };"
+      },
+      "id": "parse-bitrix-data",
+      "name": "Парсинг данных Битрикс",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [600, 300],
+      "notes": "Битрикс24 отправляет данные в формате URL-encoded:\ndata[FIELDS_AFTER][ID] = 123\n\nЭта нода преобразует их в нормальный JSON:\n{data: {FIELDS_AFTER: {ID: 123}}}"
+    },
+    {
+      "parameters": {
         "conditions": {
           "string": [
             {
@@ -56,7 +67,7 @@
       "name": "Это новая задача?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [600, 300],
+      "position": [800, 300],
       "notes": "Проверяем тип события.\nОбрабатываем только создание новых задач (ONTASKADD)."
     },
     {
@@ -95,7 +106,7 @@
       "name": "⚙️ Настройки",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [800, 200],
+      "position": [1000, 200],
       "notes": "🔧 НАСТРОЙТЕ ЗДЕСЬ:\n\n1. BITRIX24_WEBHOOK_URL:\n   Вставьте URL входящего вебхука из Битрикс24\n   Формат: https://xxx.bitrix24.ru/rest/1/токен/\n   ⚠️ URL должен заканчиваться на /\n\n2. BOT_USER_ID:\n   ID пользователя бота в Битрикс24\n   (можно оставить пустым)\n\n3. MIN_COMPLETENESS_SCORE:\n   Минимальный балл полноты (по умолчанию 70)"
     },
     {
@@ -116,7 +127,7 @@
       "name": "Получить данные задачи",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
-      "position": [1000, 200],
+      "position": [1200, 200],
       "credentials": {},
       "notes": "Запрашиваем полные данные задачи из Битрикс24 API.\nПолучаем: заголовок, описание, приоритет, исполнителя, постановщика, теги."
     },
@@ -138,7 +149,7 @@
       "name": "Получить данные постановщика",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
-      "position": [1200, 200],
+      "position": [1400, 200],
       "credentials": {},
       "notes": "Получаем имя и фамилию постановщика задачи.\nИспользуется для персонализации обращения в вопросах."
     },
@@ -167,7 +178,7 @@
       "name": "ИИ: Анализ полноты описания",
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 1,
-      "position": [1400, 200],
+      "position": [1600, 200],
       "credentials": {
         "openAiApi": {
           "id": "",
@@ -192,7 +203,7 @@
       "name": "Нужны уточнения?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [1600, 200],
+      "position": [1800, 200],
       "notes": "Ветвление по результату анализа:\n\n• Score <= порог: Информации недостаточно → генерируем вопросы\n• Score > порог: Информации достаточно → классифицируем и уведомляем\n\nПорог настраивается в ноде ⚙️ Настройки (по умолчанию 70)"
     },
     {
@@ -220,7 +231,7 @@
       "name": "ИИ: Генерация вопросов",
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 1,
-      "position": [1800, 100],
+      "position": [2000, 100],
       "credentials": {
         "openAiApi": {
           "id": "",
@@ -247,7 +258,7 @@
       "name": "Отправить вопросы в задачу",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
-      "position": [2000, 100],
+      "position": [2200, 100],
       "credentials": {},
       "notes": "Добавляем комментарий с вопросами в задачу Битрикс24.\nПостановщик получит уведомление о новом комментарии."
     },
@@ -269,7 +280,7 @@
       "name": "Установить тег: Ожидает ответа",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
-      "position": [2200, 100],
+      "position": [2400, 100],
       "credentials": {},
       "notes": "Устанавливаем служебный тег ba_pending.\nОзначает, что бот ожидает ответа от постановщика.\n\nЭтот тег будет заменён на ready_to_work после формирования ТЗ."
     },
@@ -298,7 +309,7 @@
       "name": "ИИ: Классификация тегов",
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 1,
-      "position": [1800, 300],
+      "position": [2000, 300],
       "credentials": {
         "openAiApi": {
           "id": "",
@@ -325,7 +336,7 @@
       "name": "Применить теги к задаче",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
-      "position": [2000, 300],
+      "position": [2200, 300],
       "credentials": {},
       "notes": "Обновляем задачу в Битрикс24:\n- Устанавливаем классификационные теги\n- Добавляем тег ready_to_work (задача готова)"
     },
@@ -345,7 +356,7 @@
       "name": "Уведомить исполнителя",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
-      "position": [2200, 300],
+      "position": [2400, 300],
       "credentials": {},
       "notes": "Отправляем системное уведомление исполнителю задачи.\nСообщаем, что задача проанализирована и готова к работе."
     },
@@ -394,6 +405,17 @@
   ],
   "connections": {
     "Вебхук: Новая задача": {
+      "main": [
+        [
+          {
+            "node": "Парсинг данных Битрикс",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Парсинг данных Битрикс": {
       "main": [
         [
           {
