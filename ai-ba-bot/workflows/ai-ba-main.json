@@ -353,26 +353,7 @@
       "typeVersion": 1,
       "position": [400, 500],
       "webhookId": "bitrix-comments",
-      "notes": "Точка входа для событий комментариев из Битрикс24.\n\nСкопируйте Production URL и вставьте в:\nБитрикс24 → Приложения → Исходящий вебхук\nСобытие: ONTASKCOMMENTADD\n\n⚠️ TODO: Реализовать обработку ответов"
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "string": [
-            {
-              "value1": "={{ $json.event }}",
-              "operation": "equal",
-              "value2": "ONTASKCOMMENTADD"
-            }
-          ]
-        }
-      },
-      "id": "is-comment-event",
-      "name": "Это комментарий?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [600, 500],
-      "notes": "Проверяем тип события.\n\n⚠️ TODO: Добавить логику обработки ответов:\n1. Проверить, что комментарий от постановщика\n2. Проверить, что задача имеет тег ba_pending\n3. Обработать ответы и обновить описание"
+      "notes": "Точка входа для событий комментариев из Битрикс24.\n\nСкопируйте Production URL и вставьте в:\nБитрикс24 → Приложения → Исходящий вебхук\nСобытие: ONTASKCOMMENTADD"
     },
     {
       "parameters": {},
@@ -382,6 +363,267 @@
       "typeVersion": 1,
       "position": [800, 400],
       "notes": "Заглушка для событий, которые не обрабатываются."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Парсинг данных комментария из Битрикс24\nconst input = $input.first().json.body || $input.first().json;\nconst result = {};\n\nfor (const [key, value] of Object.entries(input)) {\n  const matches = key.match(/^([^\\[]+)(?:\\[([^\\]]+)\\])?(?:\\[([^\\]]+)\\])?$/);\n  \n  if (matches) {\n    const [, first, second, third] = matches;\n    \n    if (third) {\n      result[first] = result[first] || {};\n      result[first][second] = result[first][second] || {};\n      result[first][second][third] = value;\n    } else if (second) {\n      result[first] = result[first] || {};\n      result[first][second] = value;\n    } else {\n      result[first] = value;\n    }\n  }\n}\n\nreturn { json: result };"
+      },
+      "id": "parse-comment-data",
+      "name": "Парсинг данных комментария",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [800, 500],
+      "notes": "Парсинг данных события ONTASKCOMMENTADD.\nПолучаем: ID задачи, ID комментария, ID автора."
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "bitrix-url-comment",
+              "name": "BITRIX24_WEBHOOK_URL",
+              "value": "https://ваш-домен.bitrix24.ru/rest/1/ваш-токен/",
+              "type": "string"
+            },
+            {
+              "id": "bot-user-id-comment",
+              "name": "BOT_USER_ID",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "settings-comment",
+      "name": "⚙️ Настройки (комментарии)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1000, 500],
+      "notes": "Настройки для ветки обработки комментариев.\n⚠️ Укажите те же данные, что и в основных настройках!"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.BITRIX24_WEBHOOK_URL }}tasks.task.get?taskId={{ $('Парсинг данных комментария').item.json.data.FIELDS_AFTER.TASK_ID }}"
+      },
+      "id": "get-task-for-comment",
+      "name": "Получить задачу (комментарий)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1200, 500],
+      "credentials": {},
+      "notes": "Получаем данные задачи по ID из события комментария."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.result.task.tags.includes('ba_pending') }}",
+              "operation": "equal",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "check-pending-tag",
+      "name": "Задача ожидает ответа?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1400, 500],
+      "notes": "Проверяем, есть ли у задачи тег ba_pending.\nОбрабатываем только задачи, ожидающие ответа от постановщика."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $('Парсинг данных комментария').item.json.data.FIELDS_AFTER.AUTHOR_ID }}",
+              "operation": "notEqual",
+              "value2": "={{ $('⚙️ Настройки (комментарии)').item.json.BOT_USER_ID }}"
+            }
+          ]
+        }
+      },
+      "id": "check-not-bot",
+      "name": "Комментарий не от бота?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1600, 500],
+      "notes": "Проверяем, что комментарий НЕ от бота.\nИсключаем бесконечный цикл обработки своих же комментариев."
+    },
+    {
+      "parameters": {
+        "url": "={{ $('⚙️ Настройки (комментарии)').item.json.BITRIX24_WEBHOOK_URL }}task.commentitem.getlist?TASKID={{ $('Парсинг данных комментария').item.json.data.FIELDS_AFTER.TASK_ID }}"
+      },
+      "id": "get-all-comments",
+      "name": "Получить все комментарии",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1800, 500],
+      "credentials": {},
+      "notes": "Получаем все комментарии задачи для контекста.\nВключает вопросы бота и ответы постановщика."
+    },
+    {
+      "parameters": {
+        "model": "gpt-4-turbo-preview",
+        "options": {
+          "temperature": 0.3,
+          "maxTokens": 2000
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Ты - опытный бизнес-аналитик. Твоя задача - проанализировать ответы на уточняющие вопросы и сформировать полное техническое описание задачи.\n\nПравила:\n1. Объедини исходное описание с полученными ответами\n2. Структурируй информацию логически\n3. Убери дублирование\n4. Добавь разделы: Цель, Описание, Критерии приёмки (если есть информация)\n5. Пиши на русском языке\n6. Формат - обычный текст, без markdown"
+            },
+            {
+              "role": "user",
+              "content": "={{ 'Исходная задача:\\n\\nЗаголовок: ' + $('Получить задачу (комментарий)').item.json.result.task.title + '\\nОписание: ' + ($('Получить задачу (комментарий)').item.json.result.task.description || 'Не указано') + '\\n\\nКомментарии (вопросы и ответы):\\n' + JSON.stringify($json.result) + '\\n\\nСформируй улучшенное описание задачи на основе полученных ответов. Верни JSON:\\n{\\n  \"updated_description\": \"Полное улучшенное описание задачи\",\\n  \"summary\": \"Краткое резюме изменений в 1-2 предложения\"\\n}' }}"
+            }
+          ]
+        },
+        "jsonOutput": true
+      },
+      "id": "process-answers",
+      "name": "ИИ: Обработка ответов",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [2000, 500],
+      "credentials": {
+        "openAiApi": {
+          "id": "",
+          "name": "OpenAI"
+        }
+      },
+      "notes": "ИИ анализирует ответы постановщика и формирует улучшенное описание задачи."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('⚙️ Настройки (комментарии)').item.json.BITRIX24_WEBHOOK_URL }}tasks.task.update",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "taskId",
+              "value": "={{ $('Получить задачу (комментарий)').item.json.result.task.id }}"
+            },
+            {
+              "name": "fields[DESCRIPTION]",
+              "value": "={{ $json.message.content.updated_description }}"
+            }
+          ]
+        }
+      },
+      "id": "update-task-description",
+      "name": "Обновить описание задачи",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [2200, 500],
+      "credentials": {},
+      "notes": "Обновляем описание задачи улучшенной версией от ИИ."
+    },
+    {
+      "parameters": {
+        "model": "gpt-3.5-turbo",
+        "options": {
+          "temperature": 0.1,
+          "maxTokens": 400
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Ты - система классификации задач. Назначай теги СТРОГО из фиксированного списка.\n\nТИП (обязательно 1): bug, feature, improvement, research, support\nПРИОРИТЕТ (обязательно 1): critical, high, medium, low\nОБЛАСТЬ (0-2): frontend, backend, database, integration, mobile, infrastructure\nМОДУЛЬ (0-2): sales, marketing, finance, hr, operations\n\nМаксимум 6 тегов. Новые теги ЗАПРЕЩЕНЫ."
+            },
+            {
+              "role": "user",
+              "content": "={{ 'Задача:\\nЗаголовок: ' + $('Получить задачу (комментарий)').item.json.result.task.title + '\\nОписание: ' + $('ИИ: Обработка ответов').item.json.message.content.updated_description + '\\n\\nВерни JSON:\\n{\\n  \"all_tags\": [\"все_теги_списком\"]\\n}' }}"
+            }
+          ]
+        },
+        "jsonOutput": true
+      },
+      "id": "classify-tags-comment",
+      "name": "ИИ: Классификация (комментарий)",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [2400, 500],
+      "credentials": {
+        "openAiApi": {
+          "id": "",
+          "name": "OpenAI"
+        }
+      },
+      "notes": "Классификация задачи после получения полного описания."
+    },
+    {
+      "parameters": {
+        "url": "={{ $('⚙️ Настройки (комментарии)').item.json.BITRIX24_WEBHOOK_URL }}tasks.task.update?taskId={{ $('Получить задачу (комментарий)').item.json.result.task.id }}&fields[TAGS][0]={{ $json.message.content.all_tags[0] || 'feature' }}&fields[TAGS][1]={{ $json.message.content.all_tags[1] || 'medium' }}&fields[TAGS][2]=ready_to_work"
+      },
+      "id": "apply-tags-comment",
+      "name": "Применить теги (комментарий)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [2600, 500],
+      "credentials": {},
+      "notes": "Заменяем тег ba_pending на классификационные теги + ready_to_work."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('⚙️ Настройки (комментарии)').item.json.BITRIX24_WEBHOOK_URL }}task.commentitem.add",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "TASKID",
+              "value": "={{ $('Получить задачу (комментарий)').item.json.result.task.id }}"
+            },
+            {
+              "name": "FIELDS[POST_MESSAGE]",
+              "value": "={{ '✅ Описание задачи обновлено на основе ваших ответов.\\n\\n' + $('ИИ: Обработка ответов').item.json.message.content.summary + '\\n\\nЗадача готова к работе.\\n\\n— ИИ Бизнес-аналитик' }}"
+            }
+          ]
+        }
+      },
+      "id": "post-completion-comment",
+      "name": "Подтвердить обработку",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [2800, 500],
+      "credentials": {},
+      "notes": "Оставляем комментарий о том, что ответы обработаны и задача готова."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('⚙️ Настройки (комментарии)').item.json.BITRIX24_WEBHOOK_URL }}im.notify.system.add",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "USER_ID",
+              "value": "={{ $('Получить задачу (комментарий)').item.json.result.task.responsibleId }}"
+            },
+            {
+              "name": "MESSAGE",
+              "value": "={{ 'Задача #' + $('Получить задачу (комментарий)').item.json.result.task.id + ' \"' + $('Получить задачу (комментарий)').item.json.result.task.title + '\" готова к работе.\\n\\nОписание обновлено, теги назначены.\\n\\n— ИИ Бизнес-аналитик' }}"
+            }
+          ]
+        }
+      },
+      "id": "notify-responsible-comment",
+      "name": "Уведомить исполнителя (комментарий)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [3000, 500],
+      "credentials": {},
+      "notes": "Уведомляем исполнителя, что задача готова к работе."
     }
   ],
   "connections": {
@@ -535,7 +777,142 @@
       "main": [
         [
           {
-            "node": "Это комментарий?",
+            "node": "Парсинг данных комментария",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Парсинг данных комментария": {
+      "main": [
+        [
+          {
+            "node": "⚙️ Настройки (комментарии)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⚙️ Настройки (комментарии)": {
+      "main": [
+        [
+          {
+            "node": "Получить задачу (комментарий)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Получить задачу (комментарий)": {
+      "main": [
+        [
+          {
+            "node": "Задача ожидает ответа?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Задача ожидает ответа?": {
+      "main": [
+        [
+          {
+            "node": "Комментарий не от бота?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Пропустить",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Комментарий не от бота?": {
+      "main": [
+        [
+          {
+            "node": "Получить все комментарии",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Пропустить",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Получить все комментарии": {
+      "main": [
+        [
+          {
+            "node": "ИИ: Обработка ответов",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ИИ: Обработка ответов": {
+      "main": [
+        [
+          {
+            "node": "Обновить описание задачи",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Обновить описание задачи": {
+      "main": [
+        [
+          {
+            "node": "ИИ: Классификация (комментарий)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ИИ: Классификация (комментарий)": {
+      "main": [
+        [
+          {
+            "node": "Применить теги (комментарий)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Применить теги (комментарий)": {
+      "main": [
+        [
+          {
+            "node": "Подтвердить обработку",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Подтвердить обработку": {
+      "main": [
+        [
+          {
+            "node": "Уведомить исполнителя (комментарий)",
             "type": "main",
             "index": 0
           }
