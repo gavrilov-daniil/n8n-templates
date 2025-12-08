@@ -117,17 +117,7 @@
     },
     {
       "parameters": {
-        "url": "={{ $('⚙️ Настройки').item.json.BITRIX24_WEBHOOK_URL }}user.get",
-        "options": {
-          "qs": {
-            "values": [
-              {
-                "name": "ID",
-                "value": "={{ $json.result.task.createdBy }}"
-              }
-            ]
-          }
-        }
+        "url": "={{ $('⚙️ Настройки').item.json.BITRIX24_WEBHOOK_URL }}user.get?ID={{ $json.result.task.createdBy }}"
       },
       "id": "get-creator-info",
       "name": "Получить данные постановщика",
