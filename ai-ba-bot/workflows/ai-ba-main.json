@@ -105,14 +105,16 @@
             }
           ]
         },
-        "options": {}
+        "options": {
+          "includeOtherFields": true
+        }
       },
       "id": "settings-node",
       "name": "⚙️ Настройки",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [1000, 200],
-      "notes": "🔧 НАСТРОЙТЕ ЗДЕСЬ:\n\n1. BITRIX24_WEBHOOK_URL:\n   Вставьте URL входящего вебхука из Битрикс24\n   Формат: https://xxx.bitrix24.ru/rest/1/токен/\n   ⚠️ URL должен заканчиваться на /\n\n2. BOT_USER_ID:\n   ID пользователя бота в Битрикс24\n   (можно оставить пустым)\n\n3. MIN_COMPLETENESS_SCORE:\n   Минимальный балл полноты (по умолчанию 70)"
+      "position": [600, 400],
+      "notes": "🔧 ЕДИНЫЕ НАСТРОЙКИ ДЛЯ ВСЕХ СЦЕНАРИЕВ:\n\n1. BITRIX24_WEBHOOK_URL:\n   Вставьте URL входящего вебхука из Битрикс24\n   Формат: https://xxx.bitrix24.ru/rest/1/токен/\n   ⚠️ URL должен заканчиваться на /\n\n2. BOT_USER_ID:\n   ID пользователя бота в Битрикс24\n   (обязательно для фильтрации своих комментариев)\n\n3. MIN_COMPLETENESS_SCORE:\n   Минимальный балл полноты (по умолчанию 70)"
     },
     {
       "parameters": {
@@ -399,34 +401,7 @@
     },
     {
       "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "bitrix-url-comment",
-              "name": "BITRIX24_WEBHOOK_URL",
-              "value": "https://ваш-домен.bitrix24.ru/rest/1/ваш-токен/",
-              "type": "string"
-            },
-            {
-              "id": "bot-user-id-comment",
-              "name": "BOT_USER_ID",
-              "value": "",
-              "type": "string"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "settings-comment",
-      "name": "⚙️ Настройки (комментарии)",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [1000, 500],
-      "notes": "Настройки для ветки обработки комментариев.\n⚠️ Укажите те же данные, что и в основных настройках!"
-    },
-    {
-      "parameters": {
-        "url": "={{ $json.BITRIX24_WEBHOOK_URL }}tasks.task.get?taskId={{ $('Парсинг данных комментария').item.json.data.FIELDS_AFTER.TASK_ID }}"
+        "url": "={{ $('⚙️ Настройки').item.json.BITRIX24_WEBHOOK_URL }}tasks.task.get?taskId={{ $json.data.FIELDS_AFTER.TASK_ID }}"
       },
       "id": "get-task-for-comment",
       "name": "Получить задачу (комментарий)",
@@ -477,8 +452,8 @@
           "conditions": [
             {
               "id": "condition-not-bot",
-              "leftValue": "={{ $('Парсинг данных комментария').item.json.data.FIELDS_AFTER.AUTHOR_ID }}",
-              "rightValue": "={{ $('⚙️ Настройки (комментарии)').item.json.BOT_USER_ID }}",
+              "leftValue": "={{ $('⚙️ Настройки').item.json.data.FIELDS_AFTER.AUTHOR_ID }}",
+              "rightValue": "={{ $('⚙️ Настройки').item.json.BOT_USER_ID }}",
               "operator": {
                 "type": "string",
                 "operation": "notEquals"
@@ -498,7 +473,7 @@
     },
     {
       "parameters": {
-        "url": "={{ $('⚙️ Настройки (комментарии)').item.json.BITRIX24_WEBHOOK_URL }}task.commentitem.getlist?TASKID={{ $('Парсинг данных комментария').item.json.data.FIELDS_AFTER.TASK_ID }}"
+        "url": "={{ $('⚙️ Настройки').item.json.BITRIX24_WEBHOOK_URL }}task.commentitem.getlist?TASKID={{ $('⚙️ Настройки').item.json.data.FIELDS_AFTER.TASK_ID }}"
       },
       "id": "get-all-comments",
       "name": "Получить все комментарии",
@@ -545,7 +520,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $('⚙️ Настройки (комментарии)').item.json.BITRIX24_WEBHOOK_URL }}tasks.task.update",
+        "url": "={{ $('⚙️ Настройки').item.json.BITRIX24_WEBHOOK_URL }}tasks.task.update",
         "sendBody": true,
         "contentType": "form-urlencoded",
         "bodyParameters": {
@@ -605,7 +580,7 @@
     },
     {
       "parameters": {
-        "url": "={{ $('⚙️ Настройки (комментарии)').item.json.BITRIX24_WEBHOOK_URL }}tasks.task.update?taskId={{ $('Получить задачу (комментарий)').item.json.result.task.id }}&fields[TAGS][0]={{ $json.message.content.all_tags[0] || 'feature' }}&fields[TAGS][1]={{ $json.message.content.all_tags[1] || 'medium' }}&fields[TAGS][2]=ready_to_work"
+        "url": "={{ $('⚙️ Настройки').item.json.BITRIX24_WEBHOOK_URL }}tasks.task.update?taskId={{ $('Получить задачу (комментарий)').item.json.result.task.id }}&fields[TAGS][0]={{ $json.message.content.all_tags[0] || 'feature' }}&fields[TAGS][1]={{ $json.message.content.all_tags[1] || 'medium' }}&fields[TAGS][2]=ready_to_work"
       },
       "id": "apply-tags-comment",
       "name": "Применить теги (комментарий)",
@@ -618,7 +593,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $('⚙️ Настройки (комментарии)').item.json.BITRIX24_WEBHOOK_URL }}task.commentitem.add",
+        "url": "={{ $('⚙️ Настройки').item.json.BITRIX24_WEBHOOK_URL }}task.commentitem.add",
         "sendBody": true,
         "contentType": "form-urlencoded",
         "bodyParameters": {
@@ -645,7 +620,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $('⚙️ Настройки (комментарии)').item.json.BITRIX24_WEBHOOK_URL }}im.notify.system.add",
+        "url": "={{ $('⚙️ Настройки').item.json.BITRIX24_WEBHOOK_URL }}im.notify.system.add",
         "sendBody": true,
         "contentType": "form-urlencoded",
         "bodyParameters": {
@@ -686,6 +661,17 @@
       "main": [
         [
           {
+            "node": "⚙️ Настройки",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⚙️ Настройки": {
+      "main": [
+        [
+          {
             "node": "Это новая задача?",
             "type": "main",
             "index": 0
@@ -697,25 +683,14 @@
       "main": [
         [
           {
-            "node": "⚙️ Настройки",
+            "node": "Получить данные задачи",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Пропустить",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "⚙️ Настройки": {
-      "main": [
-        [
-          {
-            "node": "Получить данные задачи",
+            "node": "Получить задачу (комментарий)",
             "type": "main",
             "index": 0
           }
@@ -832,18 +807,7 @@
       "main": [
         [
           {
-            "node": "⚙️ Настройки (комментарии)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "⚙️ Настройки (комментарии)": {
-      "main": [
-        [
-          {
-            "node": "Получить задачу (комментарий)",
+            "node": "⚙️ Настройки",
             "type": "main",
             "index": 0
           }
