@@ -54,19 +54,30 @@
     {
       "parameters": {
         "conditions": {
-          "string": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
             {
-              "value1": "={{ $json.event }}",
-              "operation": "equal",
-              "value2": "ONTASKADD"
+              "id": "condition-event-type",
+              "leftValue": "={{ $json.event }}",
+              "rightValue": "ONTASKADD",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
       "id": "check-event-type",
       "name": "Это новая задача?",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [800, 300],
       "notes": "Проверяем тип события.\nОбрабатываем только создание новых задач (ONTASKADD)."
     },
@@ -164,19 +175,30 @@
     {
       "parameters": {
         "conditions": {
-          "number": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
             {
-              "value1": "={{ $json.completeness_score }}",
-              "operation": "smallerEqual",
-              "value2": "={{ Number($('⚙️ Настройки').item.json.MIN_COMPLETENESS_SCORE) || 70 }}"
+              "id": "condition-score",
+              "leftValue": "={{ $json.completeness_score }}",
+              "rightValue": "={{ Number($('⚙️ Настройки').item.json.MIN_COMPLETENESS_SCORE) || 70 }}",
+              "operator": {
+                "type": "number",
+                "operation": "lte"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
       "id": "needs-clarification",
       "name": "Нужны уточнения?",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [1800, 200],
       "notes": "Ветвление по результату анализа:\n\n• Score <= порог: Информации недостаточно → генерируем вопросы\n• Score > порог: Информации достаточно → классифицируем и уведомляем\n\nПорог настраивается в ноде ⚙️ Настройки (по умолчанию 70)"
     },
@@ -417,38 +439,60 @@
     {
       "parameters": {
         "conditions": {
-          "boolean": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
             {
-              "value1": "={{ $json.result.task.tags.includes('ba_pending') }}",
-              "operation": "equal",
-              "value2": true
+              "id": "condition-pending-tag",
+              "leftValue": "={{ $json.result.task.tags.includes('ba_pending') }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
       "id": "check-pending-tag",
       "name": "Задача ожидает ответа?",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [1400, 500],
       "notes": "Проверяем, есть ли у задачи тег ba_pending.\nОбрабатываем только задачи, ожидающие ответа от постановщика."
     },
     {
       "parameters": {
         "conditions": {
-          "string": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
             {
-              "value1": "={{ $('Парсинг данных комментария').item.json.data.FIELDS_AFTER.AUTHOR_ID }}",
-              "operation": "notEqual",
-              "value2": "={{ $('⚙️ Настройки (комментарии)').item.json.BOT_USER_ID }}"
+              "id": "condition-not-bot",
+              "leftValue": "={{ $('Парсинг данных комментария').item.json.data.FIELDS_AFTER.AUTHOR_ID }}",
+              "rightValue": "={{ $('⚙️ Настройки (комментарии)').item.json.BOT_USER_ID }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
       "id": "check-not-bot",
       "name": "Комментарий не от бота?",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [1600, 500],
       "notes": "Проверяем, что комментарий НЕ от бота.\nИсключаем бесконечный цикл обработки своих же комментариев."
     },
