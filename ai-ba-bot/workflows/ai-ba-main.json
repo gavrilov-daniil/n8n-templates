@@ -11,7 +11,7 @@
       "name": "Sticky Note",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [40, 100]
+      "position": [40, 60]
     },
     {
       "parameters": {
@@ -23,7 +23,7 @@
       "name": "Sticky Note1",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [40, 460]
+      "position": [40, 500]
     },
     {
       "parameters": {
@@ -36,7 +36,7 @@
       "name": "Вебхук: Новая задача",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [400, 300],
+      "position": [400, 200],
       "webhookId": "bitrix-tasks",
       "notes": "Точка входа для событий из Битрикс24.\n\nСкопируйте Production URL и вставьте в:\nБитрикс24 → Приложения → Исходящий вебхук\nСобытие: ONTASKADD"
     },
@@ -48,7 +48,7 @@
       "name": "Парсинг данных Битрикс",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [600, 300],
+      "position": [680, 200],
       "notes": "Битрикс24 отправляет данные в формате URL-encoded:\ndata[FIELDS_AFTER][ID] = 123\n\nЭта нода преобразует их в нормальный JSON:\n{data: {FIELDS_AFTER: {ID: 123}}}"
     },
     {
@@ -78,7 +78,7 @@
       "name": "Это новая задача?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [800, 300],
+      "position": [1240, 200],
       "notes": "Проверяем тип события.\nОбрабатываем только создание новых задач (ONTASKADD)."
     },
     {
@@ -113,7 +113,7 @@
       "name": "⚙️ Настройки",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [600, 400],
+      "position": [960, 450],
       "notes": "🔧 ЕДИНЫЕ НАСТРОЙКИ ДЛЯ ВСЕХ СЦЕНАРИЕВ:\n\n1. BITRIX24_WEBHOOK_URL:\n   Вставьте URL входящего вебхука из Битрикс24\n   Формат: https://xxx.bitrix24.ru/rest/1/токен/\n   ⚠️ URL должен заканчиваться на /\n\n2. BOT_USER_ID:\n   ID пользователя бота в Битрикс24\n   (обязательно для фильтрации своих комментариев)\n\n3. MIN_COMPLETENESS_SCORE:\n   Минимальный балл полноты (по умолчанию 70)"
     },
     {
@@ -124,7 +124,7 @@
       "name": "Получить данные задачи",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
-      "position": [1200, 200],
+      "position": [1520, 200],
       "credentials": {},
       "notes": "Запрашиваем полные данные задачи из Битрикс24 API.\nПолучаем: заголовок, описание, приоритет, исполнителя, постановщика, теги."
     },
@@ -136,7 +136,7 @@
       "name": "Получить данные постановщика",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
-      "position": [1400, 200],
+      "position": [1800, 200],
       "credentials": {},
       "notes": "Получаем имя и фамилию постановщика задачи.\nИспользуется для персонализации обращения в вопросах."
     },
@@ -165,7 +165,7 @@
       "name": "ИИ: Анализ полноты описания",
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 1,
-      "position": [1600, 200],
+      "position": [2080, 200],
       "credentials": {
         "openAiApi": {
           "id": "",
@@ -201,7 +201,7 @@
       "name": "Нужны уточнения?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [1800, 200],
+      "position": [2360, 200],
       "notes": "Ветвление по результату анализа:\n\n• Score <= порог: Информации недостаточно → генерируем вопросы\n• Score > порог: Информации достаточно → классифицируем и уведомляем\n\nПорог настраивается в ноде ⚙️ Настройки (по умолчанию 70)"
     },
     {
@@ -229,7 +229,7 @@
       "name": "ИИ: Генерация вопросов",
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 1,
-      "position": [2000, 100],
+      "position": [2640, 80],
       "credentials": {
         "openAiApi": {
           "id": "",
@@ -261,7 +261,7 @@
       "name": "Отправить вопросы в задачу",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
-      "position": [2200, 100],
+      "position": [2920, 80],
       "credentials": {},
       "notes": "Добавляем комментарий с вопросами в задачу Битрикс24.\nПостановщик получит уведомление о новом комментарии."
     },
@@ -288,7 +288,7 @@
       "name": "Установить тег: Ожидает ответа",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
-      "position": [2400, 100],
+      "position": [3200, 80],
       "credentials": {},
       "notes": "Устанавливаем служебный тег ba_pending.\nОзначает, что бот ожидает ответа от постановщика.\n\nЭтот тег будет заменён на ready_to_work после формирования ТЗ."
     },
@@ -317,7 +317,7 @@
       "name": "ИИ: Классификация тегов",
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 1,
-      "position": [2000, 300],
+      "position": [2640, 320],
       "credentials": {
         "openAiApi": {
           "id": "",
@@ -334,7 +334,7 @@
       "name": "Применить теги к задаче",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
-      "position": [2200, 300],
+      "position": [2920, 320],
       "credentials": {},
       "notes": "Обновляем задачу в Битрикс24:\n- Устанавливаем классификационные теги\n- Добавляем тег ready_to_work (задача готова)"
     },
@@ -361,7 +361,7 @@
       "name": "Уведомить исполнителя",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
-      "position": [2400, 300],
+      "position": [3200, 320],
       "credentials": {},
       "notes": "Отправляем системное уведомление исполнителю задачи.\nСообщаем, что задача проанализирована и готова к работе."
     },
@@ -375,7 +375,7 @@
       "name": "Вебхук: Новый комментарий",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [400, 500],
+      "position": [400, 700],
       "webhookId": "bitrix-comments",
       "notes": "Точка входа для событий комментариев из Битрикс24.\n\nСкопируйте Production URL и вставьте в:\nБитрикс24 → Приложения → Исходящий вебхук\nСобытие: ONTASKCOMMENTADD"
     },
@@ -385,7 +385,7 @@
       "name": "Пропустить",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [800, 400],
+      "position": [1520, 450],
       "notes": "Заглушка для событий, которые не обрабатываются."
     },
     {
@@ -396,7 +396,7 @@
       "name": "Парсинг данных комментария",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [800, 500],
+      "position": [680, 700],
       "notes": "Парсинг данных события ONTASKCOMMENTADD.\nПолучаем: ID задачи, ID комментария, ID автора."
     },
     {
@@ -426,7 +426,7 @@
       "name": "Это событие комментария?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [1000, 500],
+      "position": [1240, 700],
       "notes": "Проверяем, что это событие добавления комментария (ONTASKCOMMENTADD).\nИгнорируем другие типы событий."
     },
     {
@@ -437,7 +437,7 @@
       "name": "Получить задачу (комментарий)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
-      "position": [1200, 500],
+      "position": [1520, 700],
       "credentials": {},
       "notes": "Получаем данные задачи по ID из события комментария."
     },
@@ -468,7 +468,7 @@
       "name": "Задача ожидает ответа?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [1400, 500],
+      "position": [1800, 700],
       "notes": "Проверяем, есть ли у задачи тег ba_pending.\nОбрабатываем только задачи, ожидающие ответа от постановщика."
     },
     {
@@ -498,7 +498,7 @@
       "name": "Комментарий не от бота?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [1600, 500],
+      "position": [2080, 700],
       "notes": "Проверяем, что комментарий НЕ от бота.\nИсключаем бесконечный цикл обработки своих же комментариев."
     },
     {
@@ -509,7 +509,7 @@
       "name": "Получить все комментарии",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
-      "position": [1800, 500],
+      "position": [2360, 700],
       "credentials": {},
       "notes": "Получаем все комментарии задачи для контекста.\nВключает вопросы бота и ответы постановщика."
     },
@@ -538,7 +538,7 @@
       "name": "ИИ: Обработка ответов",
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 1,
-      "position": [2000, 500],
+      "position": [2640, 700],
       "credentials": {
         "openAiApi": {
           "id": "",
@@ -570,7 +570,7 @@
       "name": "Обновить описание задачи",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
-      "position": [2200, 500],
+      "position": [2920, 700],
       "credentials": {},
       "notes": "Обновляем описание задачи улучшенной версией от ИИ."
     },
@@ -599,7 +599,7 @@
       "name": "ИИ: Классификация (комментарий)",
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 1,
-      "position": [2400, 500],
+      "position": [3200, 700],
       "credentials": {
         "openAiApi": {
           "id": "",
@@ -616,7 +616,7 @@
       "name": "Применить теги (комментарий)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
-      "position": [2600, 500],
+      "position": [3480, 700],
       "credentials": {},
       "notes": "Заменяем тег ba_pending на классификационные теги + ready_to_work."
     },
@@ -643,7 +643,7 @@
       "name": "Подтвердить обработку",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
-      "position": [2800, 500],
+      "position": [3760, 700],
       "credentials": {},
       "notes": "Оставляем комментарий о том, что ответы обработаны и задача готова."
     },
@@ -670,7 +670,7 @@
       "name": "Уведомить исполнителя (комментарий)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
-      "position": [3000, 500],
+      "position": [4040, 700],
       "credentials": {},
       "notes": "Уведомляем исполнителя, что задача готова к работе."
     }
