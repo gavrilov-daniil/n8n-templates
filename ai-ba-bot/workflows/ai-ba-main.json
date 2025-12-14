@@ -474,7 +474,7 @@
           "conditions": [
             {
               "id": "condition-pending-tag",
-              "leftValue": "={{ $json.result.task.tags.includes('ba_pending') }}",
+              "leftValue": "={{ Object.values($json.result.task.tags || {}).some(t => t.title === 'ba_pending') }}",
               "rightValue": true,
               "operator": {
                 "type": "boolean",
