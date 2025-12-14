@@ -401,6 +401,36 @@
     },
     {
       "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-comment-event",
+              "leftValue": "={{ $json.event }}",
+              "rightValue": "ONTASKCOMMENTADD",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-comment-event",
+      "name": "Это событие комментария?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1000, 500],
+      "notes": "Проверяем, что это событие добавления комментария (ONTASKCOMMENTADD).\nИгнорируем другие типы событий."
+    },
+    {
+      "parameters": {
         "url": "={{ $('⚙️ Настройки').item.json.BITRIX24_WEBHOOK_URL }}tasks.task.get?taskId={{ $('⚙️ Настройки').item.json.data.FIELDS_AFTER.TASK_ID }}"
       },
       "id": "get-task-for-comment",
@@ -690,7 +720,25 @@
         ],
         [
           {
+            "node": "Это событие комментария?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Это событие комментария?": {
+      "main": [
+        [
+          {
             "node": "Получить задачу (комментарий)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Пропустить",
             "type": "main",
             "index": 0
           }
