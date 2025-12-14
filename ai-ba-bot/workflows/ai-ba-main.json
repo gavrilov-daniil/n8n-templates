@@ -62,7 +62,7 @@
           "conditions": [
             {
               "id": "condition-event-type",
-              "leftValue": "={{ $('⚙️ Настройки').item.json.event }}",
+              "leftValue": "={{ $('Парсинг данных Битрикс').item.json.event }}",
               "rightValue": "ONTASKADD",
               "operator": {
                 "type": "string",
@@ -351,18 +351,18 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $('⚙️ Настройки').item.json.BITRIX24_WEBHOOK_URL }}im.notify.system.add",
+        "url": "={{ $('⚙️ Настройки').item.json.BITRIX24_WEBHOOK_URL }}task.commentitem.add",
         "sendBody": true,
         "contentType": "form-urlencoded",
         "bodyParameters": {
           "parameters": [
             {
-              "name": "USER_ID",
-              "value": "={{ $('Получить данные задачи').item.json.result.task.responsibleId }}"
+              "name": "TASKID",
+              "value": "={{ $('Получить данные задачи').item.json.result.task.id }}"
             },
             {
-              "name": "MESSAGE",
-              "value": "Задача #{{ $('Получить данные задачи').item.json.result.task.id }} \"{{ $('Получить данные задачи').item.json.result.task.title }}\" готова к работе.\n\nТеги: {{ $('ИИ: Классификация тегов').item.json.message.content.all_tags.join(', ') }}\n\n— ИИ Бизнес-аналитик"
+              "name": "FIELDS[POST_MESSAGE]",
+              "value": "={{ '[USER=' + $('Получить данные задачи').item.json.result.task.responsibleId + ']Исполнитель[/USER], задача готова к работе!\\n\\nТеги: ' + $('ИИ: Классификация тегов').item.json.message.content.all_tags.join(', ') + '\\n\\n— ИИ Бизнес-аналитик' }}"
             }
           ]
         }
@@ -373,7 +373,7 @@
       "typeVersion": 3,
       "position": [3200, 320],
       "credentials": {},
-      "notes": "Отправляем системное уведомление исполнителю задачи.\nСообщаем, что задача проанализирована и готова к работе."
+      "notes": "Добавляем комментарий с упоминанием исполнителя.\nИсполнитель получит уведомление о новом комментарии."
     },
     {
       "parameters": {
@@ -420,7 +420,7 @@
           "conditions": [
             {
               "id": "condition-comment-event",
-              "leftValue": "={{ $('⚙️ Настройки').item.json.event }}",
+              "leftValue": "={{ $('Парсинг данных комментария').item.json.event }}",
               "rightValue": "ONTASKCOMMENTADD",
               "operator": {
                 "type": "string",
@@ -660,18 +660,18 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $('⚙️ Настройки').item.json.BITRIX24_WEBHOOK_URL }}im.notify.system.add",
+        "url": "={{ $('⚙️ Настройки').item.json.BITRIX24_WEBHOOK_URL }}task.commentitem.add",
         "sendBody": true,
         "contentType": "form-urlencoded",
         "bodyParameters": {
           "parameters": [
             {
-              "name": "USER_ID",
-              "value": "={{ $('Получить задачу (комментарий)').item.json.result.task.responsibleId }}"
+              "name": "TASKID",
+              "value": "={{ $('Получить задачу (комментарий)').item.json.result.task.id }}"
             },
             {
-              "name": "MESSAGE",
-              "value": "={{ 'Задача #' + $('Получить задачу (комментарий)').item.json.result.task.id + ' \"' + $('Получить задачу (комментарий)').item.json.result.task.title + '\" готова к работе.\\n\\nОписание обновлено, теги назначены.\\n\\n— ИИ Бизнес-аналитик' }}"
+              "name": "FIELDS[POST_MESSAGE]",
+              "value": "={{ '[USER=' + $('Получить задачу (комментарий)').item.json.result.task.responsibleId + ']Исполнитель[/USER], задача готова к работе!\\n\\nОписание обновлено, теги назначены.\\n\\n— ИИ Бизнес-аналитик' }}"
             }
           ]
         }
@@ -682,7 +682,7 @@
       "typeVersion": 3,
       "position": [4040, 700],
       "credentials": {},
-      "notes": "Уведомляем исполнителя, что задача готова к работе."
+      "notes": "Добавляем комментарий с упоминанием исполнителя.\nИсполнитель получит уведомление."
     }
   ],
   "connections": {
