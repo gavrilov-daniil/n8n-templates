@@ -88,13 +88,13 @@
             {
               "id": "bitrix-url",
               "name": "BITRIX24_WEBHOOK_URL",
-              "value": "https://ваш-домен.bitrix24.ru/rest/1/ваш-токен/",
+              "value": "https://bt24.ddns.net/rest/13971/q5k1jq3o5tkhfubn/",
               "type": "string"
             },
             {
               "id": "bot-user-id",
               "name": "BOT_USER_ID",
-              "value": "",
+              "value": "13971",
               "type": "string"
             },
             {
@@ -152,7 +152,7 @@
     },
     {
       "parameters": {
-        "model": "gpt-4-turbo-preview",
+        "model": "chatgpt-4o-latest",
         "options": {
           "temperature": 0.3,
           "maxTokens": 1000
@@ -216,7 +216,7 @@
     },
     {
       "parameters": {
-        "model": "gpt-4-turbo-preview",
+        "model": "chatgpt-4o-latest",
         "options": {
           "temperature": 0.5,
           "maxTokens": 800
@@ -304,7 +304,7 @@
     },
     {
       "parameters": {
-        "model": "gpt-3.5-turbo",
+        "model": "chatgpt-4o-latest",
         "options": {
           "temperature": 0.1,
           "maxTokens": 400
@@ -525,7 +525,7 @@
     },
     {
       "parameters": {
-        "model": "gpt-4-turbo-preview",
+        "model": "chatgpt-4o-latest",
         "options": {
           "temperature": 0.3,
           "maxTokens": 2000
@@ -586,7 +586,7 @@
     },
     {
       "parameters": {
-        "model": "gpt-3.5-turbo",
+        "model": "chatgpt-4o-latest",
         "options": {
           "temperature": 0.1,
           "maxTokens": 400
