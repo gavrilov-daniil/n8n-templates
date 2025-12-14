@@ -152,7 +152,11 @@
     },
     {
       "parameters": {
-        "model": "chatgpt-4o-latest",
+        "model": {
+          "__rl": true,
+          "mode": "id",
+          "value": "chatgpt-4o-latest"
+        },
         "options": {
           "temperature": 0.3,
           "maxTokens": 1000
@@ -216,7 +220,11 @@
     },
     {
       "parameters": {
-        "model": "chatgpt-4o-latest",
+        "model": {
+          "__rl": true,
+          "mode": "id",
+          "value": "chatgpt-4o-latest"
+        },
         "options": {
           "temperature": 0.5,
           "maxTokens": 800
@@ -304,7 +312,11 @@
     },
     {
       "parameters": {
-        "model": "chatgpt-4o-latest",
+        "model": {
+          "__rl": true,
+          "mode": "id",
+          "value": "chatgpt-4o-latest"
+        },
         "options": {
           "temperature": 0.1,
           "maxTokens": 400
@@ -525,7 +537,11 @@
     },
     {
       "parameters": {
-        "model": "chatgpt-4o-latest",
+        "model": {
+          "__rl": true,
+          "mode": "id",
+          "value": "chatgpt-4o-latest"
+        },
         "options": {
           "temperature": 0.3,
           "maxTokens": 2000
@@ -586,7 +602,11 @@
     },
     {
       "parameters": {
-        "model": "chatgpt-4o-latest",
+        "model": {
+          "__rl": true,
+          "mode": "id",
+          "value": "chatgpt-4o-latest"
+        },
         "options": {
           "temperature": 0.1,
           "maxTokens": 400
