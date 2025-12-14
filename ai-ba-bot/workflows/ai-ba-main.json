@@ -102,12 +102,22 @@
               "name": "MIN_COMPLETENESS_SCORE",
               "value": "70",
               "type": "string"
+            },
+            {
+              "id": "event-type",
+              "name": "event",
+              "value": "={{ $json.event }}",
+              "type": "string"
+            },
+            {
+              "id": "parsed-data",
+              "name": "data",
+              "value": "={{ $json.data }}",
+              "type": "object"
             }
           ]
         },
-        "options": {
-          "includeOtherFields": true
-        }
+        "options": {}
       },
       "id": "settings-node",
       "name": "⚙️ Настройки",
