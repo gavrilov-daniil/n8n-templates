@@ -62,7 +62,7 @@
           "conditions": [
             {
               "id": "condition-event-type",
-              "leftValue": "={{ $json.event }}",
+              "leftValue": "={{ $('⚙️ Настройки').item.json.event }}",
               "rightValue": "ONTASKADD",
               "operator": {
                 "type": "string",
@@ -410,7 +410,7 @@
           "conditions": [
             {
               "id": "condition-comment-event",
-              "leftValue": "={{ $json.event }}",
+              "leftValue": "={{ $('⚙️ Настройки').item.json.event }}",
               "rightValue": "ONTASKCOMMENTADD",
               "operator": {
                 "type": "string",
