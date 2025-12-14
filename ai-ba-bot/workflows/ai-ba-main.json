@@ -401,7 +401,7 @@
     },
     {
       "parameters": {
-        "url": "={{ $('⚙️ Настройки').item.json.BITRIX24_WEBHOOK_URL }}tasks.task.get?taskId={{ $json.data.FIELDS_AFTER.TASK_ID }}"
+        "url": "={{ $('⚙️ Настройки').item.json.BITRIX24_WEBHOOK_URL }}tasks.task.get?taskId={{ $('⚙️ Настройки').item.json.data.FIELDS_AFTER.TASK_ID }}"
       },
       "id": "get-task-for-comment",
       "name": "Получить задачу (комментарий)",
