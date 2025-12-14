@@ -62,7 +62,7 @@
           "conditions": [
             {
               "id": "condition-event-type",
-              "leftValue": "={{ $('Парсинг данных Битрикс').item.json.event }}",
+              "leftValue": "={{ $('⚙️ Настройки').item.json.event }}",
               "rightValue": "ONTASKADD",
               "operator": {
                 "type": "string",
@@ -420,7 +420,7 @@
           "conditions": [
             {
               "id": "condition-comment-event",
-              "leftValue": "={{ $('Парсинг данных комментария').item.json.event }}",
+              "leftValue": "={{ $('⚙️ Настройки').item.json.event }}",
               "rightValue": "ONTASKCOMMENTADD",
               "operator": {
                 "type": "string",
