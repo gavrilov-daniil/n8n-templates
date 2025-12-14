@@ -15,8 +15,8 @@
     },
     {
       "parameters": {
-        "content": "## 📥 ВЕБХУКИ ИЗ БИТРИКС24\n\nНастройте исходящие вебхуки в Битрикс24:\n\n**1. Новая задача (ONTASKADD)**\nURL: скопируйте из ноды \"Вебхук: Новая задача\"\n\n**2. Новый комментарий (ONTASKCOMMENTADD)**\nURL: скопируйте из ноды \"Вебхук: Новый комментарий\"",
-        "height": 200,
+        "content": "## 📥 ВЕБХУКИ ИЗ БИТРИКС24\n\nНастройте исходящие вебхуки в Битрикс24:\n\n**1. Новая задача (ONTASKADD)**\nURL: скопируйте из ноды \"Вебхук: Новая задача\"\n\n**2. Обновление задачи (ONTASKUPDATE)**\nURL: скопируйте из ноды \"Вебхук: Обновление задачи\"\n\n**3. Новый комментарий (ONTASKCOMMENTADD)**\nURL: скопируйте из ноды \"Вебхук: Новый комментарий\"",
+        "height": 260,
         "width": 320
       },
       "id": "sticky-webhooks",
@@ -42,6 +42,32 @@
     },
     {
       "parameters": {
+        "httpMethod": "POST",
+        "path": "bitrix-task-update",
+        "responseMode": "onReceived",
+        "responseData": "allEntries"
+      },
+      "id": "webhook-update-trigger",
+      "name": "Вебхук: Обновление задачи",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [400, -100],
+      "webhookId": "bitrix-task-update",
+      "notes": "Точка входа для событий обновления задач.\n\nСкопируйте Production URL и вставьте в:\nБитрикс24 → Приложения → Исходящий вебхук\nСобытие: ONTASKUPDATE"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Парсинг данных обновления задачи из Битрикс24\nconst input = $input.first().json.body || $input.first().json;\nconst result = {};\n\nfor (const [key, value] of Object.entries(input)) {\n  const matches = key.match(/^([^\\[]+)(?:\\[([^\\]]+)\\])?(?:\\[([^\\]]+)\\])?$/);\n  \n  if (matches) {\n    const [, first, second, third] = matches;\n    \n    if (third) {\n      result[first] = result[first] || {};\n      result[first][second] = result[first][second] || {};\n      result[first][second][third] = value;\n    } else if (second) {\n      result[first] = result[first] || {};\n      result[first][second] = value;\n    } else {\n      result[first] = value;\n    }\n  }\n}\n\nreturn { json: result };"
+      },
+      "id": "parse-update-data",
+      "name": "Парсинг обновления задачи",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, -100],
+      "notes": "Парсинг данных события ONTASKUPDATE.\nПолучаем: ID задачи, данные до и после обновления."
+    },
+    {
+      "parameters": {
         "jsCode": "// Парсинг данных из Битрикс24\n// Битрикс отправляет данные в формате: data[FIELDS_AFTER][ID] = 123\n// Преобразуем в вложенный объект: {data: {FIELDS_AFTER: {ID: 123}}}\n\n// Данные приходят в body вебхука\nconst input = $input.first().json.body || $input.first().json;\nconst result = {};\n\nfor (const [key, value] of Object.entries(input)) {\n  // Разбираем ключи вида: data[FIELDS_AFTER][ID]\n  const matches = key.match(/^([^\\[]+)(?:\\[([^\\]]+)\\])?(?:\\[([^\\]]+)\\])?$/);\n  \n  if (matches) {\n    const [, first, second, third] = matches;\n    \n    if (third) {\n      // Три уровня: data[FIELDS_AFTER][ID]\n      result[first] = result[first] || {};\n      result[first][second] = result[first][second] || {};\n      result[first][second][third] = value;\n    } else if (second) {\n      // Два уровня: auth[domain]\n      result[first] = result[first] || {};\n      result[first][second] = value;\n    } else {\n      // Один уровень: event\n      result[first] = value;\n    }\n  }\n}\n\nreturn { json: result };"
       },
       "id": "parse-bitrix-data",
@@ -57,16 +83,16 @@
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "strict"
+            "typeValidation": "loose"
           },
           "conditions": [
             {
-              "id": "condition-event-type",
-              "leftValue": "={{ $('⚙️ Настройки').item.json.event }}",
-              "rightValue": "ONTASKADD",
+              "id": "condition-new-task",
+              "leftValue": "={{ $('⚙️ Настройки').item.json.event === 'ONTASKADD' || ($('⚙️ Настройки').item.json.event === 'ONTASKUPDATE' && ($('⚙️ Настройки').item.json.data.FIELDS_AFTER.RESPONSIBLE_ID === $('⚙️ Настройки').item.json.BOT_USER_ID || ($('⚙️ Настройки').item.json.data.FIELDS_AFTER.ACCOMPLICES && Object.values($('⚙️ Настройки').item.json.data.FIELDS_AFTER.ACCOMPLICES).includes($('⚙️ Настройки').item.json.BOT_USER_ID)))) }}",
+              "rightValue": true,
               "operator": {
-                "type": "string",
-                "operation": "equals"
+                "type": "boolean",
+                "operation": "true"
               }
             }
           ],
@@ -75,11 +101,11 @@
         "options": {}
       },
       "id": "check-event-type",
-      "name": "Это новая задача?",
+      "name": "Нужно анализировать задачу?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [1240, 200],
-      "notes": "Проверяем тип события.\nОбрабатываем только создание новых задач (ONTASKADD)."
+      "notes": "Проверяем, нужно ли анализировать задачу:\n\n• ONTASKADD — новая задача\n• ONTASKUPDATE — бот добавлен как исполнитель или соисполнитель"
     },
     {
       "parameters": {
@@ -140,13 +166,43 @@
     },
     {
       "parameters": {
-        "url": "={{ $('⚙️ Настройки').item.json.BITRIX24_WEBHOOK_URL }}user.get?ID={{ $json.result.task.createdBy }}"
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "condition-not-processed",
+              "leftValue": "={{ !Object.values($json.result.task.tags || {}).some(t => t.title === 'ba_pending' || t.title === 'ready_to_work') }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-not-processed",
+      "name": "Задача ещё не обработана?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1800, 200],
+      "notes": "Проверяем, что задача ещё не обработана ботом.\nПропускаем задачи с тегами ba_pending или ready_to_work."
+    },
+    {
+      "parameters": {
+        "url": "={{ $('⚙️ Настройки').item.json.BITRIX24_WEBHOOK_URL }}user.get?ID={{ $('Получить данные задачи').item.json.result.task.createdBy }}"
       },
       "id": "get-creator-info",
       "name": "Получить данные постановщика",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
-      "position": [1800, 200],
+      "position": [2080, 200],
       "credentials": {},
       "notes": "Получаем имя и фамилию постановщика задачи.\nИспользуется для персонализации обращения в вопросах."
     },
@@ -179,7 +235,7 @@
       "name": "ИИ: Анализ полноты описания",
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 1,
-      "position": [2080, 200],
+      "position": [2360, 200],
       "credentials": {
         "openAiApi": {
           "id": "",
@@ -215,7 +271,7 @@
       "name": "Нужны уточнения?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [2360, 200],
+      "position": [2640, 200],
       "notes": "Ветвление по результату анализа:\n\n• Score <= порог: Информации недостаточно → генерируем вопросы\n• Score > порог: Информации достаточно → классифицируем и уведомляем\n\nПорог настраивается в ноде ⚙️ Настройки (по умолчанию 70)"
     },
     {
@@ -247,7 +303,7 @@
       "name": "ИИ: Генерация вопросов",
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 1,
-      "position": [2640, 80],
+      "position": [2920, 80],
       "credentials": {
         "openAiApi": {
           "id": "",
@@ -279,7 +335,7 @@
       "name": "Отправить вопросы в задачу",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
-      "position": [2920, 80],
+      "position": [3200, 80],
       "credentials": {},
       "notes": "Добавляем комментарий с вопросами в задачу Битрикс24.\nПостановщик получит уведомление о новом комментарии."
     },
@@ -306,7 +362,7 @@
       "name": "Установить тег: Ожидает ответа",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
-      "position": [3200, 80],
+      "position": [3480, 80],
       "credentials": {},
       "notes": "Устанавливаем служебный тег ba_pending.\nОзначает, что бот ожидает ответа от постановщика.\n\nЭтот тег будет заменён на ready_to_work после формирования ТЗ."
     },
@@ -339,7 +395,7 @@
       "name": "ИИ: Классификация тегов",
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 1,
-      "position": [2640, 320],
+      "position": [2920, 320],
       "credentials": {
         "openAiApi": {
           "id": "",
@@ -356,7 +412,7 @@
       "name": "Применить теги к задаче",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
-      "position": [2920, 320],
+      "position": [3200, 320],
       "credentials": {},
       "notes": "Обновляем задачу в Битрикс24:\n- Устанавливаем классификационные теги\n- Добавляем тег ready_to_work (задача готова)"
     },
@@ -383,7 +439,7 @@
       "name": "Уведомить исполнителя",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
-      "position": [3200, 320],
+      "position": [3480, 320],
       "credentials": {},
       "notes": "Добавляем комментарий с упоминанием исполнителя.\nИсполнитель получит уведомление о новом комментарии."
     },
@@ -721,7 +777,29 @@
         ]
       ]
     },
+    "Вебхук: Обновление задачи": {
+      "main": [
+        [
+          {
+            "node": "Парсинг обновления задачи",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Парсинг данных Битрикс": {
+      "main": [
+        [
+          {
+            "node": "⚙️ Настройки",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Парсинг обновления задачи": {
       "main": [
         [
           {
@@ -736,14 +814,14 @@
       "main": [
         [
           {
-            "node": "Это новая задача?",
+            "node": "Нужно анализировать задачу?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Это новая задача?": {
+    "Нужно анализировать задачу?": {
       "main": [
         [
           {
@@ -783,7 +861,25 @@
       "main": [
         [
           {
+            "node": "Задача ещё не обработана?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Задача ещё не обработана?": {
+      "main": [
+        [
+          {
             "node": "Получить данные постановщика",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Пропустить",
             "type": "main",
             "index": 0
           }
