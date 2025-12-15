@@ -200,7 +200,7 @@
           "conditions": [
             {
               "id": "condition-not-processed",
-              "leftValue": "={{ !Object.values($json.result.task.tags || {}).some(t => t.title === 'ba_pending' || t.title === 'ready_to_work' || t.title === 'ba_processing') && ($('⚙️ Настройки').item.json.event === 'ONTASKADD' || ($('⚙️ Настройки').item.json.event === 'ONTASKUPDATE' && ($json.result.task.responsibleId === $('⚙️ Настройки').item.json.BOT_USER_ID || Object.values($json.result.task.accomplicesData || {}).some(a => String(a.id) === $('⚙️ Настройки').item.json.BOT_USER_ID)))) }}",
+              "leftValue": "={{ !Object.values($json.result.task.tags || {}).some(t => t.title === 'ba_pending' || t.title === 'ready_to_work' || t.title === 'ba_processing') && ($json.result.task.responsibleId === $('⚙️ Настройки').item.json.BOT_USER_ID || Object.values($json.result.task.accomplicesData || {}).some(a => String(a.id) === $('⚙️ Настройки').item.json.BOT_USER_ID)) }}",
               "rightValue": true,
               "operator": {
                 "type": "boolean",
@@ -217,7 +217,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [1800, 200],
-      "notes": "Проверяем:\n\n1. Задача не обработана (нет тегов ba_pending/ready_to_work/ba_processing)\n2. Для ONTASKADD — всегда обрабатываем\n3. Для ONTASKUPDATE — только если бот назначен исполнителем или соисполнителем"
+      "notes": "Проверяем:\n\n1. Задача не обработана (нет тегов ba_pending/ready_to_work/ba_processing)\n2. Бот назначен исполнителем или соисполнителем задачи\n\nЗадачи без участия бота игнорируются."
     },
     {
       "parameters": {
