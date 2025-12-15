@@ -815,6 +815,120 @@
       "position": [4040, 700],
       "credentials": {},
       "notes": "Добавляем комментарий с упоминанием исполнителя.\nИсполнитель получит уведомление."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT try_acquire_lock('{{ $('Получить данные задачи').item.json.result.task.id }}', 'processing', 300, '{{ $execution.id }}') as lock_acquired",
+        "options": {}
+      },
+      "id": "db-acquire-lock",
+      "name": "🔒 БД: Захватить блокировку",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2000, 400],
+      "credentials": {
+        "postgres": {
+          "id": "",
+          "name": "PostgreSQL BA Bot"
+        }
+      },
+      "notes": "Атомарный захват блокировки в БД.\nЕсли блокировка уже занята — lock_acquired = false."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO tasks (bitrix_task_id, title, description, status, completeness_score, task_type, creator_id, responsible_id) VALUES ('{{ $('Получить данные задачи').item.json.result.task.id }}', '{{ $('Получить данные задачи').item.json.result.task.title.replace(/'/g, \"''\") }}', '{{ ($('Получить данные задачи').item.json.result.task.description || '').replace(/'/g, \"''\").substring(0, 5000) }}', 'processing', {{ $('ИИ: Анализ полноты описания').item.json.message.content.completeness_score || 0 }}, '{{ $('ИИ: Анализ полноты описания').item.json.message.content.task_type || 'feature' }}', '{{ $('Получить данные задачи').item.json.result.task.createdBy }}', '{{ $('Получить данные задачи').item.json.result.task.responsibleId }}') ON CONFLICT (bitrix_task_id) DO UPDATE SET title = EXCLUDED.title, description = EXCLUDED.description, completeness_score = EXCLUDED.completeness_score, task_type = EXCLUDED.task_type, status = 'processing', updated_at = CURRENT_TIMESTAMP RETURNING *",
+        "options": {}
+      },
+      "id": "db-save-task",
+      "name": "💾 БД: Сохранить задачу",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2640, 400],
+      "credentials": {
+        "postgres": {
+          "id": "",
+          "name": "PostgreSQL BA Bot"
+        }
+      },
+      "notes": "Сохраняем/обновляем задачу в БД с результатами анализа."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO interactions (bitrix_task_id, interaction_type, actor_type, actor_id, content, metadata) VALUES ('{{ $('Получить данные задачи').item.json.result.task.id }}', 'task_analyzed', 'bot', '{{ $('⚙️ Настройки').item.json.BOT_USER_ID }}', 'Задача проанализирована. Оценка полноты: {{ $('ИИ: Анализ полноты описания').item.json.message.content.completeness_score }}%', '{\"completeness_score\": {{ $('ИИ: Анализ полноты описания').item.json.message.content.completeness_score }}, \"task_type\": \"{{ $('ИИ: Анализ полноты описания').item.json.message.content.task_type }}\"}'::jsonb)",
+        "options": {}
+      },
+      "id": "db-log-analysis",
+      "name": "📝 БД: Записать анализ",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2920, 400],
+      "credentials": {
+        "postgres": {
+          "id": "",
+          "name": "PostgreSQL BA Bot"
+        }
+      },
+      "notes": "Логируем результат анализа в историю взаимодействий."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT increment_stat('tasks_processed', 1); SELECT increment_stat('{{ $('ИИ: Анализ полноты описания').item.json.message.content.completeness_score <= 70 ? 'questions_asked' : 'tasks_completed' }}', 1);",
+        "options": {}
+      },
+      "id": "db-update-stats",
+      "name": "📊 БД: Обновить статистику",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [3200, 400],
+      "credentials": {
+        "postgres": {
+          "id": "",
+          "name": "PostgreSQL BA Bot"
+        }
+      },
+      "notes": "Обновляем счётчики статистики."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT release_lock('{{ $('Получить задачу (комментарий)').item.json.result.task.id }}', 'processing', '{{ $execution.id }}') as released",
+        "options": {}
+      },
+      "id": "db-release-lock-comment",
+      "name": "🔓 БД: Освободить блокировку",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [4320, 700],
+      "credentials": {
+        "postgres": {
+          "id": "",
+          "name": "PostgreSQL BA Bot"
+        }
+      },
+      "notes": "Освобождаем блокировку после обработки комментария."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE tasks SET status = 'ready', updated_at = CURRENT_TIMESTAMP WHERE bitrix_task_id = '{{ $('Получить задачу (комментарий)').item.json.result.task.id }}'; INSERT INTO interactions (bitrix_task_id, interaction_type, actor_type, actor_id, content) VALUES ('{{ $('Получить задачу (комментарий)').item.json.result.task.id }}', 'task_completed', 'bot', '{{ $('⚙️ Настройки').item.json.BOT_USER_ID }}', 'Задача обработана и готова к работе');",
+        "options": {}
+      },
+      "id": "db-complete-task",
+      "name": "✅ БД: Завершить задачу",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [4040, 900],
+      "credentials": {
+        "postgres": {
+          "id": "",
+          "name": "PostgreSQL BA Bot"
+        }
+      },
+      "notes": "Отмечаем задачу как готовую и логируем завершение."
     }
   ],
   "connections": {
@@ -972,6 +1086,28 @@
       ]
     },
     "ИИ: Анализ полноты описания": {
+      "main": [
+        [
+          {
+            "node": "💾 БД: Сохранить задачу",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "💾 БД: Сохранить задачу": {
+      "main": [
+        [
+          {
+            "node": "📝 БД: Записать анализ",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📝 БД: Записать анализ": {
       "main": [
         [
           {
@@ -1173,6 +1309,28 @@
         [
           {
             "node": "Уведомить исполнителя (комментарий)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Уведомить исполнителя (комментарий)": {
+      "main": [
+        [
+          {
+            "node": "✅ БД: Завершить задачу",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✅ БД: Завершить задачу": {
+      "main": [
+        [
+          {
+            "node": "🔓 БД: Освободить блокировку",
             "type": "main",
             "index": 0
           }
