@@ -39,6 +39,45 @@
     },
     {
       "parameters": {
+        "content": "## 🧪 ТЕСТИРОВАНИЕ\n\n**Быстрый тест без Bitrix24:**\n\n1. Кликните на ноду **\"🧪 Тест: Новая задача\"**\n2. Нажмите **Execute Node**\n3. Отследите выполнение по цепочке\n\n**Тестовые сценарии:**\n- `🧪 Тест: Новая задача` — полный цикл\n- Используйте **Pin Data** для сохранения тестовых данных\n\n**Советы:**\n- В тестовом режиме webhook URL другой\n- Используйте Execute Workflow для отладки отдельных участков",
+        "height": 300,
+        "width": 320
+      },
+      "id": "sticky-testing",
+      "name": "Sticky Note3",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [40, 1200]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "test-event",
+              "name": "event",
+              "value": "ONTASKADD",
+              "type": "string"
+            },
+            {
+              "id": "test-data",
+              "name": "data",
+              "value": "={{ { FIELDS_AFTER: { ID: '99999' } } }}",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "test-trigger-task",
+      "name": "🧪 Тест: Новая задача",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [400, 500],
+      "notes": "Тестовый триггер для отладки.\n\nИзмените ID задачи (99999) на реальный ID из Bitrix24 для тестирования.\n\nПосле настройки: Execute Node → проверьте выполнение цепочки."
+    },
+    {
+      "parameters": {
         "httpMethod": "POST",
         "path": "bitrix-tasks",
         "responseMode": "onReceived",
@@ -932,6 +971,17 @@
     }
   ],
   "connections": {
+    "🧪 Тест: Новая задача": {
+      "main": [
+        [
+          {
+            "node": "⚙️ Настройки",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Вебхук: Новая задача": {
       "main": [
         [
