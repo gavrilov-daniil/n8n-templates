@@ -88,7 +88,7 @@
           "conditions": [
             {
               "id": "condition-new-task",
-              "leftValue": "={{ $('⚙️ Настройки').item.json.event === 'ONTASKADD' || ($('⚙️ Настройки').item.json.event === 'ONTASKUPDATE' && ($('⚙️ Настройки').item.json.data.FIELDS_AFTER.RESPONSIBLE_ID === $('⚙️ Настройки').item.json.BOT_USER_ID || ($('⚙️ Настройки').item.json.data.FIELDS_AFTER.ACCOMPLICES && Object.values($('⚙️ Настройки').item.json.data.FIELDS_AFTER.ACCOMPLICES).includes($('⚙️ Настройки').item.json.BOT_USER_ID)))) }}",
+              "leftValue": "={{ $('⚙️ Настройки').item.json.event === 'ONTASKADD' || $('⚙️ Настройки').item.json.event === 'ONTASKUPDATE' }}",
               "rightValue": true,
               "operator": {
                 "type": "boolean",
@@ -105,7 +105,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [1240, 200],
-      "notes": "Проверяем, нужно ли анализировать задачу:\n\n• ONTASKADD — новая задача\n• ONTASKUPDATE — бот добавлен как исполнитель или соисполнитель"
+      "notes": "Проверяем тип события:\n\n• ONTASKADD — новая задача\n• ONTASKUPDATE — обновление задачи\n\nПроверка на бота выполняется после получения данных задачи."
     },
     {
       "parameters": {
@@ -154,7 +154,7 @@
     },
     {
       "parameters": {
-        "url": "={{ $json.BITRIX24_WEBHOOK_URL }}tasks.task.get?taskId={{ $('Парсинг данных Битрикс').item.json.data.FIELDS_AFTER.ID }}&select[]=*&select[]=TAGS"
+        "url": "={{ $json.BITRIX24_WEBHOOK_URL }}tasks.task.get?taskId={{ $('⚙️ Настройки').item.json.data.FIELDS_AFTER.ID }}&select[]=*&select[]=TAGS"
       },
       "id": "get-task-details",
       "name": "Получить данные задачи",
@@ -175,7 +175,7 @@
           "conditions": [
             {
               "id": "condition-not-processed",
-              "leftValue": "={{ !Object.values($json.result.task.tags || {}).some(t => t.title === 'ba_pending' || t.title === 'ready_to_work') }}",
+              "leftValue": "={{ !Object.values($json.result.task.tags || {}).some(t => t.title === 'ba_pending' || t.title === 'ready_to_work') && ($('⚙️ Настройки').item.json.event === 'ONTASKADD' || ($('⚙️ Настройки').item.json.event === 'ONTASKUPDATE' && ($json.result.task.responsibleId === $('⚙️ Настройки').item.json.BOT_USER_ID || Object.values($json.result.task.accomplicesData || {}).some(a => String(a.id) === $('⚙️ Настройки').item.json.BOT_USER_ID)))) }}",
               "rightValue": true,
               "operator": {
                 "type": "boolean",
@@ -192,7 +192,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [1800, 200],
-      "notes": "Проверяем, что задача ещё не обработана ботом.\nПропускаем задачи с тегами ba_pending или ready_to_work."
+      "notes": "Проверяем:\n\n1. Задача не обработана (нет тегов ba_pending/ready_to_work)\n2. Для ONTASKADD — всегда обрабатываем\n3. Для ONTASKUPDATE — только если бот назначен исполнителем или соисполнителем"
     },
     {
       "parameters": {
