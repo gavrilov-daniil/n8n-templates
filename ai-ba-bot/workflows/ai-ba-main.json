@@ -255,7 +255,7 @@
           "conditions": [
             {
               "id": "condition-score",
-              "leftValue": "={{ $json.completeness_score }}",
+              "leftValue": "={{ $json.message.content.completeness_score }}",
               "rightValue": "={{ Number($('⚙️ Настройки').item.json.MIN_COMPLETENESS_SCORE) || 70 }}",
               "operator": {
                 "type": "number",
