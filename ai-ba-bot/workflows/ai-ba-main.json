@@ -27,6 +27,18 @@
     },
     {
       "parameters": {
+        "content": "## 🗄️ БАЗА ДАННЫХ (опционально)\n\nДля продвинутых функций (история, блокировки, статистика):\n\n1. **Запустите PostgreSQL:**\n   ```\n   cd ai-ba-bot && docker-compose up -d\n   ```\n\n2. **Создайте Credentials в n8n:**\n   - Type: PostgreSQL\n   - Name: PostgreSQL BA Bot\n   - Host: localhost\n   - Database: ai_ba_bot\n   - User: ai_ba_user\n   - Password: changeme123\n\n3. **Примеры нод:** см. файл `db/n8n-postgres-nodes.json`\n\n📖 Подробнее: `db/README.md`",
+        "height": 380,
+        "width": 320
+      },
+      "id": "sticky-database",
+      "name": "Sticky Note2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [40, 800]
+    },
+    {
+      "parameters": {
         "httpMethod": "POST",
         "path": "bitrix-tasks",
         "responseMode": "onReceived",

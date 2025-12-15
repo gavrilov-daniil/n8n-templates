@@ -1,0 +1,136 @@
+{
+  "description": "PostgreSQL ноды для интеграции с workflow ИИ Бизнес-аналитика",
+  "credentials_setup": {
+    "name": "PostgreSQL BA Bot",
+    "type": "postgres",
+    "host": "localhost",
+    "port": 5432,
+    "database": "ai_ba_bot",
+    "user": "ai_ba_user",
+    "password": "changeme123",
+    "ssl": false
+  },
+  "nodes": {
+    "acquire_lock": {
+      "description": "Захват блокировки задачи (вместо тега ba_processing)",
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT try_acquire_lock('{{ $('Получить данные задачи').item.json.result.task.id }}', 'processing', 300, '{{ $execution.id }}') as lock_acquired",
+        "options": {}
+      },
+      "name": "🔒 БД: Захватить блокировку",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "",
+          "name": "PostgreSQL BA Bot"
+        }
+      }
+    },
+    "release_lock": {
+      "description": "Освобождение блокировки задачи",
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT release_lock('{{ $('Получить данные задачи').item.json.result.task.id }}', 'processing', '{{ $execution.id }}') as lock_released",
+        "options": {}
+      },
+      "name": "🔓 БД: Освободить блокировку",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "",
+          "name": "PostgreSQL BA Bot"
+        }
+      }
+    },
+    "save_task": {
+      "description": "Сохранение/обновление задачи в БД",
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO tasks (bitrix_task_id, title, description, status, completeness_score, task_type, priority, creator_id, creator_name, responsible_id, responsible_name, deadline) VALUES ('{{ $('Получить данные задачи').item.json.result.task.id }}', '{{ $('Получить данные задачи').item.json.result.task.title }}', '{{ $('Получить данные задачи').item.json.result.task.description }}', 'processing', {{ $('ИИ: Анализ полноты описания').item.json.message.content.completeness_score || 0 }}, '{{ $('ИИ: Анализ полноты описания').item.json.message.content.task_type || 'feature' }}', '{{ $('Получить данные задачи').item.json.result.task.priority }}', '{{ $('Получить данные задачи').item.json.result.task.createdBy }}', '{{ $('Получить данные постановщика').item.json.result[0].NAME }} {{ $('Получить данные постановщика').item.json.result[0].LAST_NAME }}', '{{ $('Получить данные задачи').item.json.result.task.responsibleId }}', '{{ $('Получить данные задачи').item.json.result.task.responsible.name }}', {{ $('Получить данные задачи').item.json.result.task.deadline ? \"'\" + $('Получить данные задачи').item.json.result.task.deadline + \"'\" : 'NULL' }}) ON CONFLICT (bitrix_task_id) DO UPDATE SET title = EXCLUDED.title, description = EXCLUDED.description, completeness_score = EXCLUDED.completeness_score, task_type = EXCLUDED.task_type, updated_at = CURRENT_TIMESTAMP RETURNING *",
+        "options": {}
+      },
+      "name": "💾 БД: Сохранить задачу",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "",
+          "name": "PostgreSQL BA Bot"
+        }
+      }
+    },
+    "log_interaction": {
+      "description": "Логирование взаимодействия",
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO interactions (bitrix_task_id, interaction_type, actor_type, actor_id, actor_name, content, metadata) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)",
+        "options": {
+          "queryParams": "={{ [$('Получить данные задачи').item.json.result.task.id, 'task_analyzed', 'bot', $('⚙️ Настройки').item.json.BOT_USER_ID, 'ИИ Бизнес-аналитик', 'Задача проанализирована', JSON.stringify({completeness_score: $('ИИ: Анализ полноты описания').item.json.message.content.completeness_score})] }}"
+        }
+      },
+      "name": "📝 БД: Записать взаимодействие",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "",
+          "name": "PostgreSQL BA Bot"
+        }
+      }
+    },
+    "get_task_context": {
+      "description": "Получение полного контекста задачи для ИИ",
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT get_task_context('{{ $('Получить данные задачи').item.json.result.task.id }}') as context",
+        "options": {}
+      },
+      "name": "📚 БД: Получить контекст задачи",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "",
+          "name": "PostgreSQL BA Bot"
+        }
+      }
+    },
+    "update_stats": {
+      "description": "Обновление статистики",
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT increment_stat('tasks_processed', 1)",
+        "options": {}
+      },
+      "name": "📊 БД: Обновить статистику",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "",
+          "name": "PostgreSQL BA Bot"
+        }
+      }
+    },
+    "check_lock_exists": {
+      "description": "Проверка существования блокировки",
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT EXISTS(SELECT 1 FROM task_locks WHERE bitrix_task_id = '{{ $('Получить данные задачи').item.json.result.task.id }}' AND lock_type = 'processing' AND expires_at > CURRENT_TIMESTAMP) as is_locked",
+        "options": {}
+      },
+      "name": "🔍 БД: Проверить блокировку",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "",
+          "name": "PostgreSQL BA Bot"
+        }
+      }
+    }
+  }
+}
