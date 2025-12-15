@@ -191,6 +191,25 @@
     },
     {
       "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT status FROM tasks WHERE bitrix_task_id = '{{ $('Получить данные задачи').item.json.result.task.id }}' LIMIT 1",
+        "options": {}
+      },
+      "id": "db-check-status",
+      "name": "БД: Проверить статус",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1660, 200],
+      "credentials": {
+        "postgres": {
+          "id": "",
+          "name": "PostgreSQL BA Bot"
+        }
+      },
+      "notes": "Проверяем статус задачи в БД.\nЕсли задача уже обрабатывается — пропускаем."
+    },
+    {
+      "parameters": {
         "conditions": {
           "options": {
             "caseSensitive": true,
@@ -200,7 +219,7 @@
           "conditions": [
             {
               "id": "condition-not-processed",
-              "leftValue": "={{ !Object.values($json.result.task.tags || {}).some(t => t.title === 'ba_pending' || t.title === 'ready_to_work' || t.title === 'ba_processing') && ($json.result.task.responsibleId === $('⚙️ Настройки').item.json.BOT_USER_ID || Object.values($json.result.task.accomplicesData || {}).some(a => String(a.id) === $('⚙️ Настройки').item.json.BOT_USER_ID)) }}",
+              "leftValue": "={{ (!$json[0] || !['processing', 'pending_response', 'ready', 'completed'].includes($json[0].status)) && ($('Получить данные задачи').item.json.result.task.responsibleId === $('⚙️ Настройки').item.json.BOT_USER_ID || Object.values($('Получить данные задачи').item.json.result.task.accomplicesData || {}).some(a => String(a.id) === $('⚙️ Настройки').item.json.BOT_USER_ID)) }}",
               "rightValue": true,
               "operator": {
                 "type": "boolean",
@@ -216,35 +235,27 @@
       "name": "Задача ещё не обработана?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [1800, 200],
-      "notes": "Проверяем:\n\n1. Задача не обработана (нет тегов ba_pending/ready_to_work/ba_processing)\n2. Бот назначен исполнителем или соисполнителем задачи\n\nЗадачи без участия бота игнорируются."
+      "position": [1840, 200],
+      "notes": "Проверяем:\n\n1. Статус в БД не processing/pending_response/ready/completed\n2. Бот назначен исполнителем или соисполнителем\n\nЗадачи без участия бота или уже обработанные игнорируются."
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "={{ $('⚙️ Настройки').item.json.BITRIX24_WEBHOOK_URL }}tasks.task.update",
-        "sendBody": true,
-        "contentType": "form-urlencoded",
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "taskId",
-              "value": "={{ $('Получить данные задачи').item.json.result.task.id }}"
-            },
-            {
-              "name": "fields[TAGS][0]",
-              "value": "ba_processing"
-            }
-          ]
-        }
+        "operation": "executeQuery",
+        "query": "INSERT INTO tasks (bitrix_task_id, title, status, creator_id, responsible_id) VALUES ('{{ $('Получить данные задачи').item.json.result.task.id }}', '{{ $('Получить данные задачи').item.json.result.task.title.replace(/'/g, \"''\") }}', 'processing', '{{ $('Получить данные задачи').item.json.result.task.createdBy }}', '{{ $('Получить данные задачи').item.json.result.task.responsibleId }}') ON CONFLICT (bitrix_task_id) DO UPDATE SET status = 'processing', updated_at = CURRENT_TIMESTAMP RETURNING *",
+        "options": {}
       },
       "id": "set-processing-tag",
-      "name": "🔒 Заблокировать задачу",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 3,
+      "name": "🔒 БД: Статус 'processing'",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
       "position": [2000, 200],
-      "credentials": {},
-      "notes": "Устанавливаем тег ba_processing чтобы:\n1. Предотвратить параллельную обработку\n2. Другие executions пропустят эту задачу"
+      "credentials": {
+        "postgres": {
+          "id": "",
+          "name": "PostgreSQL BA Bot"
+        }
+      },
+      "notes": "Устанавливаем статус 'processing' в БД:\n1. Предотвращает параллельную обработку\n2. Другие executions пропустят эту задачу"
     },
     {
       "parameters": {
@@ -393,30 +404,22 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "={{ $('⚙️ Настройки').item.json.BITRIX24_WEBHOOK_URL }}tasks.task.update",
-        "sendBody": true,
-        "contentType": "form-urlencoded",
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "taskId",
-              "value": "={{ $('Получить данные задачи').item.json.result.task.id }}"
-            },
-            {
-              "name": "fields[TAGS][0]",
-              "value": "ba_pending"
-            }
-          ]
-        }
+        "operation": "executeQuery",
+        "query": "UPDATE tasks SET status = 'pending_response', updated_at = CURRENT_TIMESTAMP WHERE bitrix_task_id = '{{ $('Получить данные задачи').item.json.result.task.id }}'",
+        "options": {}
       },
       "id": "add-pending-tag",
-      "name": "Установить тег: Ожидает ответа",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 3,
+      "name": "📝 БД: Статус 'pending_response'",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
       "position": [3480, 80],
-      "credentials": {},
-      "notes": "Устанавливаем служебный тег ba_pending.\nОзначает, что бот ожидает ответа от постановщика.\n\nЭтот тег будет заменён на ready_to_work после формирования ТЗ."
+      "credentials": {
+        "postgres": {
+          "id": "",
+          "name": "PostgreSQL BA Bot"
+        }
+      },
+      "notes": "Устанавливаем статус 'pending_response' в БД.\nОзначает, что бот ожидает ответа от постановщика."
     },
     {
       "parameters": {
@@ -458,7 +461,7 @@
     },
     {
       "parameters": {
-        "url": "={{ $('⚙️ Настройки').item.json.BITRIX24_WEBHOOK_URL }}tasks.task.update?taskId={{ $('Получить данные задачи').item.json.result.task.id }}&fields[TAGS][0]={{ $json.message.content.all_tags[0] || 'feature' }}&fields[TAGS][1]={{ $json.message.content.all_tags[1] || 'medium' }}&fields[TAGS][2]=ready_to_work"
+        "url": "={{ $('⚙️ Настройки').item.json.BITRIX24_WEBHOOK_URL }}tasks.task.update?taskId={{ $('Получить данные задачи').item.json.result.task.id }}&fields[TAGS][0]={{ $json.message.content.all_tags[0] || 'feature' }}&fields[TAGS][1]={{ $json.message.content.all_tags[1] || 'medium' }}"
       },
       "id": "apply-tags",
       "name": "Применить теги к задаче",
@@ -466,7 +469,7 @@
       "typeVersion": 3,
       "position": [3200, 320],
       "credentials": {},
-      "notes": "Обновляем задачу в Битрикс24:\n- Устанавливаем классификационные теги\n- Добавляем тег ready_to_work (задача готова)"
+      "notes": "Обновляем задачу в Битрикс24:\n- Устанавливаем классификационные теги (тип, приоритет)"
     },
     {
       "parameters": {
@@ -494,6 +497,25 @@
       "position": [3480, 320],
       "credentials": {},
       "notes": "Добавляем комментарий с упоминанием исполнителя.\nИсполнитель получит уведомление о новом комментарии."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE tasks SET status = 'ready', updated_at = CURRENT_TIMESTAMP WHERE bitrix_task_id = '{{ $('Получить данные задачи').item.json.result.task.id }}'",
+        "options": {}
+      },
+      "id": "db-set-ready-status",
+      "name": "✅ БД: Статус 'ready'",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [3760, 320],
+      "credentials": {
+        "postgres": {
+          "id": "",
+          "name": "PostgreSQL BA Bot"
+        }
+      },
+      "notes": "Устанавливаем статус 'ready' в БД.\nЗадача полностью обработана и готова к работе."
     },
     {
       "parameters": {
@@ -573,6 +595,25 @@
     },
     {
       "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT status FROM tasks WHERE bitrix_task_id = '{{ $('Получить задачу (комментарий)').item.json.result.task.id }}' LIMIT 1",
+        "options": {}
+      },
+      "id": "db-check-status-comment",
+      "name": "БД: Проверить статус (комментарий)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1660, 700],
+      "credentials": {
+        "postgres": {
+          "id": "",
+          "name": "PostgreSQL BA Bot"
+        }
+      },
+      "notes": "Проверяем статус задачи в БД для обработки комментария."
+    },
+    {
+      "parameters": {
         "conditions": {
           "options": {
             "caseSensitive": true,
@@ -582,7 +623,7 @@
           "conditions": [
             {
               "id": "condition-pending-tag",
-              "leftValue": "={{ Object.values($json.result.task.tags || {}).some(t => t.title === 'ba_pending') }}",
+              "leftValue": "={{ $json[0] && $json[0].status === 'pending_response' }}",
               "rightValue": true,
               "operator": {
                 "type": "boolean",
@@ -598,8 +639,8 @@
       "name": "Задача ожидает ответа?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [1800, 700],
-      "notes": "Проверяем, есть ли у задачи тег ba_pending.\nОбрабатываем только задачи, ожидающие ответа от постановщика."
+      "position": [1840, 700],
+      "notes": "Проверяем статус 'pending_response' в БД.\nОбрабатываем только задачи, ожидающие ответа от постановщика."
     },
     {
       "parameters": {
@@ -752,7 +793,7 @@
     },
     {
       "parameters": {
-        "url": "={{ $('⚙️ Настройки').item.json.BITRIX24_WEBHOOK_URL }}tasks.task.update?taskId={{ $('Получить задачу (комментарий)').item.json.result.task.id }}&fields[TAGS][0]={{ $json.message.content.all_tags[0] || 'feature' }}&fields[TAGS][1]={{ $json.message.content.all_tags[1] || 'medium' }}&fields[TAGS][2]=ready_to_work"
+        "url": "={{ $('⚙️ Настройки').item.json.BITRIX24_WEBHOOK_URL }}tasks.task.update?taskId={{ $('Получить задачу (комментарий)').item.json.result.task.id }}&fields[TAGS][0]={{ $json.message.content.all_tags[0] || 'feature' }}&fields[TAGS][1]={{ $json.message.content.all_tags[1] || 'medium' }}"
       },
       "id": "apply-tags-comment",
       "name": "Применить теги (комментарий)",
@@ -760,7 +801,7 @@
       "typeVersion": 3,
       "position": [3480, 700],
       "credentials": {},
-      "notes": "Заменяем тег ba_pending на классификационные теги + ready_to_work."
+      "notes": "Устанавливаем классификационные теги (тип, приоритет)."
     },
     {
       "parameters": {
@@ -1038,6 +1079,17 @@
       "main": [
         [
           {
+            "node": "БД: Проверить статус",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "БД: Проверить статус": {
+      "main": [
+        [
+          {
             "node": "Задача ещё не обработана?",
             "type": "main",
             "index": 0
@@ -1049,7 +1101,7 @@
       "main": [
         [
           {
-            "node": "🔒 Заблокировать задачу",
+            "node": "🔒 БД: Статус 'processing'",
             "type": "main",
             "index": 0
           }
@@ -1063,7 +1115,7 @@
         ]
       ]
     },
-    "🔒 Заблокировать задачу": {
+    "🔒 БД: Статус 'processing'": {
       "main": [
         [
           {
@@ -1151,7 +1203,7 @@
       "main": [
         [
           {
-            "node": "Установить тег: Ожидает ответа",
+            "node": "📝 БД: Статус 'pending_response'",
             "type": "main",
             "index": 0
           }
@@ -1174,6 +1226,17 @@
         [
           {
             "node": "Уведомить исполнителя",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Уведомить исполнителя": {
+      "main": [
+        [
+          {
+            "node": "✅ БД: Статус 'ready'",
             "type": "main",
             "index": 0
           }
@@ -1203,6 +1266,17 @@
       ]
     },
     "Получить задачу (комментарий)": {
+      "main": [
+        [
+          {
+            "node": "БД: Проверить статус (комментарий)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "БД: Проверить статус (комментарий)": {
       "main": [
         [
           {
