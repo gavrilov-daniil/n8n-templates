@@ -154,6 +154,19 @@
     },
     {
       "parameters": {
+        "amount": 10,
+        "unit": "seconds"
+      },
+      "id": "debounce-wait",
+      "name": "⏳ Дебаунс (10 сек)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [1380, 200],
+      "webhookId": "debounce-resume",
+      "notes": "Задержка 10 секунд для дебаунса.\n\nЕсли пользователь делает несколько изменений подряд,\nэта пауза позволяет обработать только финальное состояние задачи."
+    },
+    {
+      "parameters": {
         "url": "={{ $json.BITRIX24_WEBHOOK_URL }}tasks.task.get?taskId={{ $('⚙️ Настройки').item.json.data.FIELDS_AFTER.ID }}&select[]=*&select[]=TAGS"
       },
       "id": "get-task-details",
@@ -175,7 +188,7 @@
           "conditions": [
             {
               "id": "condition-not-processed",
-              "leftValue": "={{ !Object.values($json.result.task.tags || {}).some(t => t.title === 'ba_pending' || t.title === 'ready_to_work') && ($('⚙️ Настройки').item.json.event === 'ONTASKADD' || ($('⚙️ Настройки').item.json.event === 'ONTASKUPDATE' && ($json.result.task.responsibleId === $('⚙️ Настройки').item.json.BOT_USER_ID || Object.values($json.result.task.accomplicesData || {}).some(a => String(a.id) === $('⚙️ Настройки').item.json.BOT_USER_ID)))) }}",
+              "leftValue": "={{ !Object.values($json.result.task.tags || {}).some(t => t.title === 'ba_pending' || t.title === 'ready_to_work' || t.title === 'ba_processing') && ($('⚙️ Настройки').item.json.event === 'ONTASKADD' || ($('⚙️ Настройки').item.json.event === 'ONTASKUPDATE' && ($json.result.task.responsibleId === $('⚙️ Настройки').item.json.BOT_USER_ID || Object.values($json.result.task.accomplicesData || {}).some(a => String(a.id) === $('⚙️ Настройки').item.json.BOT_USER_ID)))) }}",
               "rightValue": true,
               "operator": {
                 "type": "boolean",
@@ -192,7 +205,34 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [1800, 200],
-      "notes": "Проверяем:\n\n1. Задача не обработана (нет тегов ba_pending/ready_to_work)\n2. Для ONTASKADD — всегда обрабатываем\n3. Для ONTASKUPDATE — только если бот назначен исполнителем или соисполнителем"
+      "notes": "Проверяем:\n\n1. Задача не обработана (нет тегов ba_pending/ready_to_work/ba_processing)\n2. Для ONTASKADD — всегда обрабатываем\n3. Для ONTASKUPDATE — только если бот назначен исполнителем или соисполнителем"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('⚙️ Настройки').item.json.BITRIX24_WEBHOOK_URL }}tasks.task.update",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "taskId",
+              "value": "={{ $('Получить данные задачи').item.json.result.task.id }}"
+            },
+            {
+              "name": "fields[TAGS][0]",
+              "value": "ba_processing"
+            }
+          ]
+        }
+      },
+      "id": "set-processing-tag",
+      "name": "🔒 Заблокировать задачу",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [2000, 200],
+      "credentials": {},
+      "notes": "Устанавливаем тег ba_processing чтобы:\n1. Предотвратить параллельную обработку\n2. Другие executions пропустят эту задачу"
     },
     {
       "parameters": {
@@ -825,7 +865,7 @@
       "main": [
         [
           {
-            "node": "Получить данные задачи",
+            "node": "⏳ Дебаунс (10 сек)",
             "type": "main",
             "index": 0
           }
@@ -833,6 +873,17 @@
         [
           {
             "node": "Это событие комментария?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⏳ Дебаунс (10 сек)": {
+      "main": [
+        [
+          {
+            "node": "Получить данные задачи",
             "type": "main",
             "index": 0
           }
@@ -872,7 +923,7 @@
       "main": [
         [
           {
-            "node": "Получить данные постановщика",
+            "node": "🔒 Заблокировать задачу",
             "type": "main",
             "index": 0
           }
@@ -880,6 +931,17 @@
         [
           {
             "node": "Пропустить",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔒 Заблокировать задачу": {
+      "main": [
+        [
+          {
+            "node": "Получить данные постановщика",
             "type": "main",
             "index": 0
           }
